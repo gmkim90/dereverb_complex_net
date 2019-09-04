@@ -5,7 +5,7 @@ for ((epoch=0;epoch<=100;epoch++)); do
     echo "training $epoch epoch"
 
     if [ $epoch == 0 ]; then # git upload after successful execution
-	git checkout -b brain21
+	git checkout brain21
 	git add .gitignore
 	git add *.py
 	git add *.sh
