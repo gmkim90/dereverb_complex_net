@@ -1,0 +1,18 @@
+# : comments
+
+# no .pth
+*.pth
+
+# no .mat
+*.mat
+
+# directory not to be included
+logs/
+wavs/
+specs/
+test_set/
+RT_analysis/
+checkpoint/
+
+# no csv
+data_sorted/*.csv
