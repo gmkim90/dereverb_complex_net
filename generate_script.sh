@@ -104,6 +104,18 @@
 
 
 # C visualize (345)
-python3.7 train.py --expnum 345 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_14S_realimag.json --grid_cm 1 --eval_iter 500 --lR0 1e-4 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --src_range '0,100,0,100,0,100' --nSource 1 --eps 1e-12 --clamp_src 8000 --batch_size 8 --mode generate --nGenerate 1 --tr_manifest data_sorted/L553_fixedmic_hyper_1cm_RT0.2_tr.csv
+#python3.7 train.py --expnum 345 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_14S_realimag.json --grid_cm 1 --eval_iter 500 --lR0 1e-4 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --src_range '0,100,0,100,0,100' --nSource 1 --eps 1e-12 --clamp_src 8000 --batch_size 8 --mode generate --nGenerate 1 --tr_manifest data_sorted/L553_fixedmic_hyper_1cm_RT0.2_tr.csv
 
+
+# Metric vs position (363)
+#python3.7 train.py --expnum 363 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_14S_ksztime=1_realimag.json --grid_cm 1 --eval_iter 500 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --clamp_frame 1 --fix_len_by_cl input --mode generate --nGenerate 10000 --tr_manifest data_sorted/L553_fixedmic_hyper_1cm_seenSrc_10cm_to_1cm.csv --val_manifest data_sorted/L553_fixedmic_hyper_1cm_unseenSrc_10cm_to_1cm.csv --save_activation True
+
+# Metric vs position (364)
+#python3.7 train.py --expnum 364 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_18L_ksztime=1_realimag.json --grid_cm 1 --eval_iter 500 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --clamp_frame 1 --fix_len_by_cl input --mode generate --nGenerate 10000 --tr_manifest data_sorted/L553_fixedmic_hyper_1cm_seenSrc_10cm_to_1cm.csv --val_manifest data_sorted/L553_fixedmic_hyper_1cm_unseenSrc_10cm_to_1cm.csv --save_activation True
+
+# Metric vs position (358)
+python3.7 train.py --expnum 358 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_16L_ksztime=1_realimag.json --grid_cm 1 --eval_iter 500 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --src_range '0,100,0,100,0,100' --clamp_frame 1 --fix_len_by_cl input --mode generate --nGenerate 10000 --tr_manifest data_sorted/L553_fixedmic_hyper_1cm_seenSrc_10cm_to_1cm.csv --val_manifest data_sorted/L553_fixedmic_hyper_1cm_unseenSrc_10cm_to_1cm.csv --save_activation True
+
+# Metric vs position (366)
+python3.7 train.py --expnum 366 --ds_rate 8 --nWin 8192 --nFFT 8192 --input_type complex_ratio --model_json models/reverb_multimic_18L_ksztime=1_realimag.json --grid_cm 1 --eval_iter 0 --nMic 2 --loss_type srcIndepSDR_Cproj_by_SShat --eval_type sInvSDR_mag --src_range '0,100,0,100,0,100' --clamp_frame 1 --fix_len_by_cl input --mode generate --nGenerate 10000 --tr_manifest data_sorted/L553_fixedmic_hyper_0.1cm_seenSrc_1cm_to_0.1cm.csv --val_manifest data_sorted/L553_fixedmic_hyper_0.1cm_unseenSrc_1cm_to_0.1cm.csv --save_activation True
 

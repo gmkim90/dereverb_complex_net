@@ -126,9 +126,13 @@ def main(args):
     else:
         hop_length = args.hop_length
     #print('1')
-    #window = torch.hann_window(win_size).cuda()
+    #
     window_path = 'window_' + str(win_size) + '.pth'
-    window = torch.load(window_path, map_location=torch.device('cpu'))
+    if not os.path.exists(window_path):
+        window = torch.hann_window(win_size)
+        torch.save(window, window_path)
+    else:
+        window = torch.load(window_path, map_location=torch.device('cpu'))
     window = window.cuda()
 
     #print('2')
