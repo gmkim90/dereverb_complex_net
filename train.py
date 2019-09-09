@@ -13,7 +13,7 @@ from utils import get_stride_product_time, count_parameters
 #from models.layers.istft import ISTFT
 from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, sInvSDR_spec, negative_MSE, sInvSDR_mag, \
     srcIndepSDR_mag, srcIndepSDR_freqpower, srcIndepSDR_mag_diffperT, srcIndepSDR_freqpower_diffperT, srcIndepSDR_freqpower_by_enhanced, \
-    srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat
+    srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat
 
 from se_dataset import SpecDataset
 from torch.utils.data import DataLoader
@@ -142,11 +142,6 @@ def main(args):
     #loss_w_var = 0 #dummy variable
 
     stft = lambda x: torch.stft(x, n_fft, hop_length, win_length = win_size, window=window)
-    #print('3')
-    if(args.use_ISTFT):
-        istft = ISTFT(n_fft, hop_length, window='hanning').cuda()
-    else:
-        istft = None
 
     if(args.mode == 'generate'):
         args.return_path = True
@@ -212,6 +207,10 @@ def main(args):
         Loss = srcIndepSDR_mag
     elif(args.loss_type == 'srcIndepSDR_Cproj_by_WH'):
         Loss = srcIndepSDR_Cproj_by_WH
+    elif(args.loss_type == 'SD_SDR_spec_RIconcat'):
+        Loss = SD_SDR_spec_RIconcat
+    elif(args.loss_type == 'SI_SDR_spec_RIconcat'):
+        Loss = SI_SDR_spec_RIconcat
     elif(args.loss_type == 'srcIndepSDR_Cproj_by_SShat'):
         #Loss = srcIndepSDR_Cproj_by_SShat
         print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
@@ -224,9 +223,9 @@ def main(args):
         Pf = Pf/Pf_sum # normalize
 
         Loss = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif (args.loss_type == 'srcIndepSDR_mag_diffperT'):
+    elif(args.loss_type == 'srcIndepSDR_mag_diffperT'):
         Loss = srcIndepSDR_mag_diffperT
-    elif (args.loss_type == 'srcIndepSDR_freqpower_diffperT'):
+    elif(args.loss_type == 'srcIndepSDR_freqpower_diffperT'):
         weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
         Pf = weights_per_freq * weights_per_freq
         Pf_sum = Pf.sum()
@@ -244,6 +243,8 @@ def main(args):
         Pf = Pf / Pf_sum  # normalize
 
         Loss = lambda out_real, out_imag, Tlist: srcIndepSDR_freqpower_by_enhanced(out_real, out_imag, Tlist, Pf)
+
+
 
     if(args.eval_type == 'sInvSDR_time'):
         Eval = sInvSDR_time
@@ -263,6 +264,10 @@ def main(args):
         Eval = srcIndepSDR_mag_diffperT
     elif(args.eval_type == 'srcIndepSDR_Cproj_by_WH'):
         Eval = srcIndepSDR_Cproj_by_WH
+    elif(args.eval_type == 'SD_SDR_spec_RIconcat'):
+        Eval = SD_SDR_spec_RIconcat
+    elif(args.eval_type == 'SI_SDR_spec_RIconcat'):
+        Eval = SI_SDR_spec_RIconcat
     elif(args.eval_type == 'srcIndepSDR_Cproj_by_SShat'):
         #Eval = srcIndepSDR_Cproj_by_SShat
         print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
@@ -291,6 +296,10 @@ def main(args):
         Eval2 = sInvSDR_mag
     elif(args.eval2_type == 'srcIndepSDR_mag'):
         Eval2 = srcIndepSDR_mag
+    elif(args.eval2_type == 'SD_SDR_spec_RIconcat'):
+        Eval2 = SD_SDR_spec_RIconcat
+    elif(args.eval2_type == 'SI_SDR_spec_RIconcat'):
+        Eval2 = SI_SDR_spec_RIconcat
     elif(args.eval2_type == 'srcIndepSDR_Cproj_by_WH'):
         Eval2 = srcIndepSDR_Cproj_by_WH
     elif(args.eval2_type == 'srcIndepSDR_Cproj_by_SShat'):

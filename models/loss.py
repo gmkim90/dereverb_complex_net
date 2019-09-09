@@ -18,13 +18,11 @@ def sInvSDR_time(clean, clean_est, eps=1e-10): # scale invariant SDR loss functi
 
     return sInvSDR # #minibatchx1
 
-def sInvSDR_spec(clean_real, clean_imag, output_list, eps=1e-10): # scale invariant SDR loss function
-    output_real = output_list[0]
-    output_imag = output_list[1]
+def sInvSDR_spec(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
 
-    inner_product = torch.sum(torch.sum(clean_real*output_real + clean_imag*output_imag, dim=2), dim=1) # Re(x^Hy)
+    inner_product = torch.sum(torch.sum(clean_real*out_real + clean_imag*out_imag, dim=2), dim=1) # Re(x^Hy)
     power_clean = torch.sum(torch.sum(clean_real*clean_real + clean_imag*clean_imag, dim=2), dim=1)
-    power_output = torch.sum(torch.sum(output_real*output_real + output_imag*output_imag, dim=2), dim=1)
+    power_output = torch.sum(torch.sum(out_real*out_real + out_imag*out_imag, dim=2), dim=1)
 
     inner_product_sq = inner_product*inner_product
     power_clean_output = power_clean*power_output
@@ -35,7 +33,28 @@ def sInvSDR_spec(clean_real, clean_imag, output_list, eps=1e-10): # scale invari
     sInvSDR = 10*(torch.log10(numerator+eps) - torch.log10(denominator + eps))
 
     #return torch.mean(wSDR) # scalar
-    return sInvSDR # #minibatchx1
+    return sInvSDR # #
+
+def SD_SDR_spec_RIconcat(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
+    # concat real & imag: {(NxFxT), (NxFxT)} --> (Nx2FxT)
+
+    clean = torch.cat((clean_real, clean_imag), dim=1)
+    out = torch.cat((out_real, out_imag), dim=1)
+
+    inner_product = torch.sum(torch.sum(clean*out, dim=2), dim=1) # Re(x^Hy)
+    power_clean = torch.sum(torch.sum(clean*clean, dim=2), dim=1)
+    power_output = torch.sum(torch.sum(out*out, dim=2), dim=1)
+
+    inner_product_sq = inner_product*inner_product
+    power_clean_output = power_clean*power_output
+
+    numerator = inner_product_sq
+    denominator = power_clean_output - inner_product_sq
+
+    SDR = 10*(torch.log10(numerator+eps) - torch.log10(denominator + eps))
+
+    #return torch.mean(wSDR) # scalar
+    return SDR # #minibatchx1
 
 def var_time(W):
     # time dimension in W: 3
@@ -436,6 +455,47 @@ def srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist
 
     return sInvSDR  #minibatchx1
 
+
+def SI_SDR_spec_RIconcat(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-12):  # scale invariant SDR loss function
+    # H, W: NxMxFxT
+    # Tlist: Nx1
+    N, F, Tmax = clean_real.size()
+
+    cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
+    Cr = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
+    Ci = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
+
+    # concat real & imag
+    C = torch.cat((Cr, Ci), dim=1)
+
+    #pdb.set_trace()
+
+    #Cref = torch.sqrt(1/(Tlist*F)).unsqueeze(1).unsqueeze(2).expand_as(Cmag) # Nx1 --> NxFxT (don't need expand_as)
+    Cref = torch.sqrt(1 / (Tlist.float().cuda() * F*2)).unsqueeze(1).unsqueeze(2) # Nx1 --> Nx1x1
+
+    # make garbage frame zero
+    for n in range(N):
+        t = Tlist[n]
+        Cref[:, :, t:] = 0
+
+    # project to Cmag to Cref (L2-norm=1)
+    inner_prod = torch.sum(torch.sum(C*Cref, dim=2), dim=1) # sum((Nx2FxT)*(Nx1x1)) = Nx1
+    Ctarget = inner_prod.unsqueeze(1).unsqueeze(2)*Cref  # (Nx1x1)*(Nx1x1) = (Nx1x1)
+    Cdistortion = C-Ctarget # (Nx2FxT)-(Nx1x1) = (Nx2FxT)
+
+    Ctarget_pow = inner_prod*inner_prod # Nx1
+    Cdistortion_pow = torch.sum(torch.sum(Cdistortion*Cdistortion, dim=2), dim=1) # Nx1
+
+    SDR = 10*(torch.log10(Ctarget_pow + eps) - torch.log10(Cdistortion_pow + eps))
+
+    # sio.savemat('SI-SShat.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(),
+    #                               'out_real':out_real.data.cpu().numpy(),
+    #                               'out_imag':out_imag.data.cpu().numpy(),
+    #                              'Cr':Cr.data.cpu().numpy(),
+    #                              'Ci':Ci.data.cpu().numpy(),
+    #                              'sInvSDR':sInvSDR.data.cpu().numpy()})
+
+    return SDR  #minibatchx1
 
 '''
 def sInvSDR_mag_given_output_pow(clean_real, clean_imag, output_pow, eps=1e-14):  # scale invariant SDR loss function
