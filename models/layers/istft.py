@@ -13,13 +13,17 @@ class ISTFT(torch.nn.Module):
         self.hop_length = hop_length
         self.center = center
 
+        print('(ISTFT) get window')
         win_cof = scipy.signal.get_window(window, filter_length)
+        print('(ISTFT) get inverse STFT window')
         self.inv_win = self.inverse_stft_window(win_cof, hop_length)
 
+        print('(ISTFT) get fourier basis')
         fourier_basis = np.fft.fft(np.eye(self.filter_length))
         cutoff = int((self.filter_length / 2 + 1))
         fourier_basis = np.vstack([np.real(fourier_basis[:cutoff, :]),
                                    np.imag(fourier_basis[:cutoff, :])])
+        print('(ISTFT) get inverse basis (require pseudo inverse)')
         inverse_basis = torch.FloatTensor(self.inv_win * \
                 np.linalg.pinv(fourier_basis).T[:, None, :])
 
