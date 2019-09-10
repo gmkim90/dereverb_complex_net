@@ -16,7 +16,7 @@ def normalize(y):
     return y
 
 def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type, stride_product, mode='train', expnum=-1, fixed_src=False,
-                   Eval=None, Eval2=None, fix_len_by_cl='input', count=0,  use_pos=False, save_activation=False, eps=1e-10):
+                   Eval=None, Eval2=None, fix_len_by_cl='input', count=0,  use_pos=False, save_activation=False, eps=1e-10, save_wav=False, istft=None):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
     if(mixedSTFT.dim() == 4): # for singleCH experiment
@@ -261,5 +261,22 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
     #if(loss_type == 'srcIndepSDR_mag' or loss_type == 'srcIndepSDR_freqpower'):
         #return loss, eval_metric, eval2_metric, Cmag
 
-    #pdb.set_trace()
+
+    if(save_wav):
+        assert(not data_type == 'train') # currently, save_wav is not allowed for train (but allowed in 'trsub', val, test etc)
+        #pdb.set_trace()
+        mixed_time, clean_time, len_time = input[3], input[4], input[5]
+        out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
+        for i, l in enumerate(len_time):  # zero padding to output audio
+            out_audio[i, l:] = 0
+
+        # write wav
+        T0 = len_time[0].item()
+        sf.write('wavs/' + str(expnum) + '/mixed_' + data_type + '.wav', mixed_time[0][0][:T0].data.cpu().numpy(), 16000)
+        sf.write('wavs/' + str(expnum) + '/clean_' + data_type + '.wav',clean_time[0][:T0].data.cpu().numpy(), 16000)
+        sf.write('wavs/' + str(expnum) + '/out_' + data_type + '.wav', out_audio[0][:T0].data.cpu().numpy(),16000)
+        sf.write('wavs/' + str(expnum) + '/mixed_' + data_type + '_norm.wav', normalize(mixed_time[0][0][:T0]).data.cpu().numpy(), 16000)
+        sf.write('wavs/' + str(expnum) + '/clean_' + data_type + '_norm.wav', normalize(clean_time[0][:T0]).data.cpu().numpy(), 16000)
+        sf.write('wavs/' + str(expnum) + '/out_' + data_type + '_norm.wav', normalize(out_audio[0][:T0]).data.cpu().numpy(),16000)
+
     return loss, eval_metric, eval2_metric

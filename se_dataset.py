@@ -140,12 +140,17 @@ class SpecDataset(data.Dataset):
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0,
-                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1):
+                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False):
         self.return_path = return_path
 
         #self.clamp_src = clamp_src
+        self.manifest_path = manifest_path
         self.clamp_frame = clamp_frame
         self.ref_mic_direct_td_subtract = ref_mic_direct_td_subtract
+        self.use_audio = use_audio
+
+        #print(manifest_path)
+        #print(use_audio)
 
         # ver 1. all of wav data is loaded in advance
         #dataset = load_data_list(manifest_path=manifest_path)
@@ -253,22 +258,14 @@ class SpecDataset(data.Dataset):
         cleanSTFT = self.stft(clean.cuda())
 
         if(self.clamp_frame > 0):
-            # print('CLAMP before')
-            # print('mixedSTFT')
-            # print(mixedSTFT.size())
-            # print('cleanSTFT')
-            # print(cleanSTFT.size())
             mixedSTFT = mixedSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
             cleanSTFT = cleanSTFT[:, self.clamp_frame:-self.clamp_frame, :]  # MxFxTx2
-            # print('CLAMP after')
-            # print('mixedSTFT')
-            # print(mixedSTFT.size())
-            # print('cleanSTFT')
-            # print(cleanSTFT.size())
 
-        #return_list = [mixedSTFT, cleanSTFT, mixed, clean]
-        return_list = [mixedSTFT, cleanSTFT] # do not use time domain signal anymore
-        del mixed, clean
+        if(self.use_audio):
+            return_list = [mixedSTFT, cleanSTFT, mixed, clean]
+        else:
+            return_list = [mixedSTFT, cleanSTFT] # do not use time domain signal anymore
+            del mixed, clean
 
         if(self.return_path):
             return_list.append(self.dataset['innames'][idx])
@@ -360,8 +357,9 @@ class SpecDataset(data.Dataset):
         
         mixeds_STFT = input_zips.__next__()
         cleans_STFT = input_zips.__next__()
-        #mixeds_time = input_zips.__next__() # do not use time domain signal anymore
-        #cleans_time = input_zips.__next__() # do not use time domain signal anymore        
+        if(self.use_audio):
+            mixeds_time = input_zips.__next__() # do not use time domain signal anymore
+            cleans_time = input_zips.__next__() # do not use time domain signal anymore
         if(self.return_path):
             reverb_paths = input_zips.__next__()
         if(self.return_RT60):
@@ -378,22 +376,23 @@ class SpecDataset(data.Dataset):
         #seq_lens_time = torch.IntTensor([i.shape[-1] for i in mixeds_time])
 
         seq_lens_STFT = torch.IntTensor([i.shape[-2] for i in cleans_STFT]) # measured by clean
-        #seq_lens_time = torch.IntTensor([i.shape[-1] for i in cleans_time]) # measured by clean
+        if(self.use_audio):
+            seq_lens_time = torch.IntTensor([i.shape[-1] for i in cleans_time]) # measured by clean
 
         x_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(mixeds_STFT))
         y_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(cleans_STFT)).squeeze() # may contain garbage dimension
 
-        del cleans_STFT, mixeds_STFT
-        #x_time = torch.FloatTensor(self.zero_pad_concat_time(mixeds_time))
-        #y_time = torch.FloatTensor(self.zero_pad_concat_time(cleans_time))
-
-        #pdb.set_trace()
-
-        #batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time]
         if(y_STFT.size(0) > 100): # possibly, sample dimension is missing (cuz minibatch size = 1)
             #x_STFT = x_STFT.unsqueeze(0) # x is already unsqueezed in the front part
             y_STFT = y_STFT.unsqueeze(0)
-        batch = [x_STFT, y_STFT, seq_lens_STFT]
+
+        del cleans_STFT, mixeds_STFT
+        if(self.use_audio):
+            x_time = torch.FloatTensor(self.zero_pad_concat_time(mixeds_time))
+            y_time = torch.FloatTensor(self.zero_pad_concat_time(cleans_time))
+            batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time]
+        else:
+            batch = [x_STFT, y_STFT, seq_lens_STFT]
         #pdb.set_trace()
         if(self.return_path):
             batch.append(reverb_paths)
@@ -417,5 +416,5 @@ class SpecDataset(data.Dataset):
             else:
                 batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time, reverb_paths, RT60s]
         '''
-
+        #pdb.set_trace()
         return batch

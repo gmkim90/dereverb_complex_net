@@ -68,7 +68,7 @@ parser.add_argument('--CW_freq', default=0, type=int) # LCN
 parser.add_argument('--fs', default=16000, type=int)
 parser.add_argument('--f_start', default=0, type=int)
 parser.add_argument('--f_end', default=8000, type=int) # nyquist freq
-parser.add_argument('--save_tr_wav', default=False, type=str2bool)
+parser.add_argument('--save_wav', default=False, type=str2bool)
 
 
 #parser.add_argument('--power_reciprocal_conjugate', default=False, type=str2bool, help='W = power_reciprocal_conjugate(H) as fixed solution for uniqueness')
@@ -81,6 +81,8 @@ parser.add_argument('--return_path', default=False, type=str2bool)
 
 parser.add_argument('--REV_VIS', default=False, type=str2bool, help = 'REVERB-Visualization scenario')
 parser.add_argument('--hop_length', default=0, type=int, help = 'if 0, automatically selected as win_size/2')
+
+parser.add_argument('--RT', default=0.2, type=float)
 
 
 

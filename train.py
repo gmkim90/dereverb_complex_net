@@ -14,7 +14,7 @@ from utils import get_stride_product_time, count_parameters
 from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, sInvSDR_spec, negative_MSE, sInvSDR_mag, \
     srcIndepSDR_mag, srcIndepSDR_freqpower, srcIndepSDR_mag_diffperT, srcIndepSDR_freqpower_diffperT, srcIndepSDR_freqpower_by_enhanced, \
     srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat
-
+import pickle
 from se_dataset import SpecDataset
 from torch.utils.data import DataLoader
 import scipy.io as sio
@@ -75,6 +75,21 @@ def main(args):
     os.environ['CUDA_VISIBLE_DEVICES']=str(gpuIdx)
     print('gpuIdx = ' + str(gpuIdx) + ' is selected')
 
+    if(args.save_wav):
+        savename_ISTFT = 'ISTFT_' + str(args.nFFT) + '.pth'
+        if not os.path.exists(savename_ISTFT):
+            print('init ISTFT')
+            istft = ISTFT(args.nFFT, args.hop_length, window='hanning')
+            with open(savename_ISTFT, 'wb') as f:
+                pickle.dump(istft, f)
+        else:
+            print('load saved ISTFT')
+            with open(savename_ISTFT, 'rb') as f:
+                istft = pickle.load(f)
+        istft = istft.cuda()
+    else:
+        istft = None
+
     prefix = 'data_sorted/'
     #pdb.set_trace()
     if(not args.mode == 'generate'): # for generation mode, please manually write manifest
@@ -83,9 +98,14 @@ def main(args):
                 # new data (large room, fixed mic)
                 #pdb.set_trace()
                 if(len(args.tr_manifest) == 0):
-                    args.tr_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_tr.csv'
+                    args.tr_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_tr.csv'
+
+                if(args.save_wav and len(args.trsub_manifest) == 0):
+                    args.trsub_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_trsub_8samples.csv'
+
                 if (len(args.val_manifest) == 0):
-                    args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_val.csv'
+                    args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
+
                 '''
                 if (len(args.te1_manifest) == 0):
                     args.te1_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_te1.csv'
@@ -163,25 +183,35 @@ def main(args):
                                     interval_cm=args.interval_cm_tr) # start_ratio, end_ratio only for training dataset
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
+    if (len(args.trsub_manifest) > 0):
+        trsub_dataset = SpecDataset(manifest_path=args.trsub_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
+                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list, nSource=args.nSource,
+                                    start_ratio=args.start_ratio, end_ratio=args.end_ratio,
+                                    clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav)
+        trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
+
+
+
     if (len(args.val_manifest) > 0):
         val_dataset = SpecDataset(manifest_path=args.val_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
                                   load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
                                   clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                  interval_cm=args.interval_cm_te)
+                                  interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
         test1_dataset = SpecDataset(manifest_path=args.te1_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
         test2_dataset = SpecDataset(manifest_path=args.te2_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te) # for test2, set pos_range as 'all' (all positions within a room)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     if(args.eval_iter == 0):
@@ -502,25 +532,35 @@ def main(args):
                     with torch.no_grad():
                         if(args.do_eval):
                             net.eval()
+                        count_eval += 1
+
+                        # Training subset
+                        if (len(args.trsub_manifest) > 0):
+                            evaluate(args.expnum, trsub_loader, net, Loss, 'trsub', args.loss_type, args.eval_type, args.eval2_type,
+                                     stride_product_time, logger, epoch, Eval, Eval2,
+                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
+                                     save_wav=args.save_wav, istft=istft)
 
                         # Validaion
-                        #utils.CPUmemDebug('before eval (val)', mem_debug_file)
-                        count_eval += 1
-                        evaluate(val_loader, net, Loss, 'val', args.loss_type, args.eval_type, args.eval2_type,
-                                 stride_product_time, logger, epoch, Eval, Eval2,
-                                 args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps)
+                        if (len(args.te1_manifest) > 0):
+                            evaluate(args.expnum, val_loader, net, Loss, 'val', args.loss_type, args.eval_type, args.eval2_type,
+                                     stride_product_time, logger, epoch, Eval, Eval2,
+                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
+                                     save_wav=args.save_wav, istft=istft)
                         #utils.CPUmemDebug('after eval (val)', mem_debug_file)
                         # Test
                         if (len(args.te1_manifest) > 0):
-                            evaluate(test1_loader, net, Loss, 'test', args.loss_type, args.eval_type, args.eval2_type,
+                            evaluate(args.expnum, test1_loader, net, Loss, 'test', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps)
+                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
+                                     save_wav=args.save_wav, istft=istft)
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
-                            evaluate(test2_loader, net, Loss, 'test2', args.loss_type, args.eval_type, args.eval2_type,
+                            evaluate(args.expnum, test2_loader, net, Loss, 'test2', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps)
+                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
+                                     save_wav=args.save_wav, istft=istft)
 
                         net.train()
                         gc.collect()
@@ -730,8 +770,9 @@ def main(args):
                 print('NO VALIDATION MANIFEST')
 
 
-def evaluate(loader, net, Loss, data_type, loss_type, eval_type, eval2_type, stride_product,
-             logger, epoch, Eval, Eval2, fix_len_by_cl, ec_decomposition=False, eps=1e-10):
+def evaluate(expnum, loader, net, Loss, data_type, loss_type, eval_type, eval2_type, stride_product,
+             logger, epoch, Eval, Eval2, fix_len_by_cl, ec_decomposition=False, eps=1e-10,
+             save_wav=False, istft=None):
     count = 0
     loss_total = 0
     #loss_w_var_total = 0
@@ -746,8 +787,11 @@ def evaluate(loader, net, Loss, data_type, loss_type, eval_type, eval2_type, str
         #for _, input in enumerate(loader):
             count += 1
             loss, eval_metric, eval2_metric = forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type,
-                                                             stride_product, mode='train',
-                                               Eval=Eval, Eval2=Eval2, fix_len_by_cl=fix_len_by_cl, use_pos=ec_decomposition, eps=eps)
+                                                             stride_product, mode='train', expnum=expnum,
+                                               Eval=Eval, Eval2=Eval2, fix_len_by_cl=fix_len_by_cl, use_pos=ec_decomposition, eps=eps,
+                                                             save_wav=save_wav, istft=istft)
+            save_wav = False # MAKE save_wav activate only once
+
             loss_mean = torch.mean(loss)
             loss_total += loss_mean.item()
             eval_metric_mean = torch.mean(eval_metric)
