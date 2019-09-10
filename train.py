@@ -10,7 +10,6 @@ import gc
 
 import utils
 from utils import get_stride_product_time, count_parameters
-#from models.layers.istft import ISTFT
 from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, sInvSDR_spec, negative_MSE, sInvSDR_mag, \
     srcIndepSDR_mag, srcIndepSDR_freqpower, srcIndepSDR_mag_diffperT, srcIndepSDR_freqpower_diffperT, srcIndepSDR_freqpower_by_enhanced, \
     srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat
@@ -74,21 +73,6 @@ def main(args):
     gpuIdx = utils.get_freer_gpu()
     os.environ['CUDA_VISIBLE_DEVICES']=str(gpuIdx)
     print('gpuIdx = ' + str(gpuIdx) + ' is selected')
-
-    if(args.save_wav):
-        savename_ISTFT = 'ISTFT_' + str(args.nFFT) + '.pth'
-        if not os.path.exists(savename_ISTFT):
-            print('init ISTFT')
-            istft = ISTFT(args.nFFT, args.hop_length, window='hanning')
-            with open(savename_ISTFT, 'wb') as f:
-                pickle.dump(istft, f)
-        else:
-            print('load saved ISTFT')
-            with open(savename_ISTFT, 'rb') as f:
-                istft = pickle.load(f)
-        istft = istft.cuda()
-    else:
-        istft = None
 
     prefix = 'data_sorted/'
     #pdb.set_trace()
@@ -154,6 +138,22 @@ def main(args):
     else:
         window = torch.load(window_path, map_location=torch.device('cpu'))
     window = window.cuda()
+
+    if(args.save_wav):
+        savename_ISTFT = 'ISTFT_' + str(n_fft) + '.pth'
+        from models.layers.istft import ISTFT
+        if not os.path.exists(savename_ISTFT):
+            print('init ISTFT')
+            istft = ISTFT(n_fft, hop_length, window='hanning')
+            with open(savename_ISTFT, 'wb') as f:
+                pickle.dump(istft, f)
+        else:
+            print('load saved ISTFT')
+            with open(savename_ISTFT, 'rb') as f:
+                istft = pickle.load(f)
+        istft = istft.cuda()
+    else:
+        istft = None
 
     #print('2')
     f_start_ratio = args.f_start / (args.fs / 2)
