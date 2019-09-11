@@ -18,7 +18,7 @@ def sInvSDR_time(clean, clean_est, eps=1e-10): # scale invariant SDR loss functi
 
     return sInvSDR # #minibatchx1
 
-def sInvSDR_spec(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
+def SD_SDR_complex_ipd(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
 
     inner_product = torch.sum(torch.sum(clean_real*out_real + clean_imag*out_imag, dim=2), dim=1) # Re(x^Hy)
     power_clean = torch.sum(torch.sum(clean_real*clean_real + clean_imag*clean_imag, dim=2), dim=1)
@@ -481,6 +481,45 @@ def SI_SDR_spec_RIconcat(clean_real, clean_imag, out_real, out_imag, Tlist, eps=
     # project to Cmag to Cref (L2-norm=1)
     inner_prod = torch.sum(torch.sum(C*Cref, dim=2), dim=1) # sum((Nx2FxT)*(Nx1x1)) = Nx1
     Ctarget = inner_prod.unsqueeze(1).unsqueeze(2)*Cref  # (Nx1x1)*(Nx1x1) = (Nx1x1)
+    Cdistortion = C-Ctarget # (Nx2FxT)-(Nx1x1) = (Nx2FxT)
+
+    Ctarget_pow = inner_prod*inner_prod # Nx1
+    Cdistortion_pow = torch.sum(torch.sum(Cdistortion*Cdistortion, dim=2), dim=1) # Nx1
+
+    SDR = 10*(torch.log10(Ctarget_pow + eps) - torch.log10(Cdistortion_pow + eps))
+
+    # sio.savemat('SI-SShat.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(),
+    #                               'out_real':out_real.data.cpu().numpy(),
+    #                               'out_imag':out_imag.data.cpu().numpy(),
+    #                              'Cr':Cr.data.cpu().numpy(),
+    #                              'Ci':Ci.data.cpu().numpy(),
+    #                              'sInvSDR':sInvSDR.data.cpu().numpy()})
+
+    return SDR  #minibatchx1
+
+
+def SI_SDR_complex_ipd(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-12):  # scale invariant SDR loss function
+    # H, W: NxMxFxT
+    # Tlist: Nx1
+    N, F, Tmax = clean_real.size()
+
+    cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
+    Chat_r = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
+    Chat_i = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
+
+    # concat real & imag
+    #Chat = torch.cat((Chat_r, Chat_i), dim=1)
+
+    C = torch.sqrt(1 / (Tlist.float().cuda() * F)).unsqueeze(1).unsqueeze(2) # Nx1 --> Nx1x1
+
+    # make garbage frame zero
+    for n in range(N):
+        t = Tlist[n]
+        C[:, :, t:] = 0
+
+    # project to Cmag to Cref (L2-norm=1)
+    inner_prod = torch.sum(torch.sum(Chat_r*C, dim=2), dim=1) # (Chat_r*C_r+Chat_i*C_i), C_i=0, sum((NxFxT)*(Nx1x1)) = Nx1
+    Ctarget = inner_prod.unsqueeze(1).unsqueeze(2)*C  # (Nx1x1)*(Nx1x1) = (Nx1x1)
     Cdistortion = C-Ctarget # (Nx2FxT)-(Nx1x1) = (Nx2FxT)
 
     Ctarget_pow = inner_prod*inner_prod # Nx1
