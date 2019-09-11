@@ -79,10 +79,10 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
         mask_real[i, :, :, min(l, Tmax_cl):] = 0
         mask_imag[i, :, :, min(l, Tmax_cl):] = 0
 
-    if(loss_type == 'sInvSDR_mag' or loss_type == 'sInvSDR_spec' or loss_type == 'SD_SDR_spec_RIconcat'):
+    if(loss_type == 'sInvSDR_mag' or loss_type == 'SD_SDR_complex_ipd' or loss_type == 'SD_SDR_spec_RIconcat'):
         #loss = -Loss(clean_real, clean_imag, out_list)
         loss = -Loss(clean_real, clean_imag, out_real, out_imag) # loss = -SDR
-    elif(loss_type == 'srcIndepSDR_Cproj_by_SShat' or loss_type == 'SI_SDR_spec_RIconcat'):
+    elif(loss_type == 'srcIndepSDR_Cproj_by_SShat' or loss_type == 'SI_SDR_spec_RIconcat' or loss_type == 'SI_SDR_complex_ipd'):
         loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)  # loss = -SDR
     elif(loss_type == 'srcIndepSDR_freqpower_by_enhanced'):
         #loss = Loss(out_real, out_imag, len_STFT_cl) # WRONG SIGN
@@ -210,7 +210,7 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
 
         #eval_metric, Cmag = Eval(Wreal, Wimag, Hreal, Himag, len_STFT_cl)
         eval_metric = Eval(Wreal, Wimag, Hreal, Himag, len_STFT_cl)
-    elif(eval_type == 'srcIndepSDR_Cproj_by_SShat' or eval_type == 'SI_SDR_spec_RIconcat'):
+    elif(eval_type == 'srcIndepSDR_Cproj_by_SShat' or eval_type == 'SI_SDR_spec_RIconcat' or eval_type == 'SI_SDR_complex_ipd'):
         eval_metric = Eval(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
     else: # sInvSDR_mag
         #eval_metric = Eval(clean_real, clean_imag, out_list)
@@ -252,7 +252,7 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
 
         #eval_metric, Cmag = Eval(Wreal, Wimag, Hreal, Himag, len_STFT_cl)
         eval2_metric = Eval2(Wreal, Wimag, Hreal, Himag, len_STFT_cl)
-    elif (eval2_type == 'srcIndepSDR_Cproj_by_SShat' or eval2_type == 'SI_SDR_spec_RIconcat'):
+    elif (eval2_type == 'srcIndepSDR_Cproj_by_SShat' or eval2_type == 'SI_SDR_spec_RIconcat' or eval2_type == 'SI_SDR_complex_ipd'):
         eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
     else: # sInvSDR_mag
         #eval_metric = Eval(clean_real, clean_imag, out_list)

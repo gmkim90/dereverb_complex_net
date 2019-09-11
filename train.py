@@ -10,9 +10,9 @@ import gc
 
 import utils
 from utils import get_stride_product_time, count_parameters
-from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, sInvSDR_spec, negative_MSE, sInvSDR_mag, \
+from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, SD_SDR_complex_ipd, negative_MSE, sInvSDR_mag, \
     srcIndepSDR_mag, srcIndepSDR_freqpower, srcIndepSDR_mag_diffperT, srcIndepSDR_freqpower_diffperT, srcIndepSDR_freqpower_by_enhanced, \
-    srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat
+    srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat, SI_SDR_complex_ipd
 import pickle
 from se_dataset import SpecDataset
 from torch.utils.data import DataLoader
@@ -229,8 +229,8 @@ def main(args):
         Loss = cossim_mag
     elif(args.loss_type == 'sInvSDR_time'):
         Loss = sInvSDR_time
-    elif (args.loss_type == 'sInvSDR_spec'):
-        Loss = sInvSDR_spec
+    elif (args.loss_type == 'SD_SDR_complex_ipd'):
+        Loss = SD_SDR_complex_ipd
     elif (args.loss_type == 'sInvSDR_mag'):
         Loss = sInvSDR_mag
     elif(args.loss_type == 'srcIndepSDR_mag'):
@@ -241,6 +241,8 @@ def main(args):
         Loss = SD_SDR_spec_RIconcat
     elif(args.loss_type == 'SI_SDR_spec_RIconcat'):
         Loss = SI_SDR_spec_RIconcat
+    elif(args.loss_type == 'SI_SDR_complex_ipd'):
+        Loss = SI_SDR_complex_ipd
     elif(args.loss_type == 'srcIndepSDR_Cproj_by_SShat'):
         #Loss = srcIndepSDR_Cproj_by_SShat
         print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
@@ -278,8 +280,8 @@ def main(args):
 
     if(args.eval_type == 'sInvSDR_time'):
         Eval = sInvSDR_time
-    elif(args.eval_type == 'sInvSDR_spec'):
-        Eval = sInvSDR_spec
+    elif(args.eval_type == 'SD_SDR_complex_ipd'):
+        Eval = SD_SDR_complex_ipd
     elif(args.eval_type == 'sInvSDR_mag'):
         Eval = sInvSDR_mag
     elif(args.eval_type == 'srcIndepSDR_mag'):
@@ -298,6 +300,8 @@ def main(args):
         Eval = SD_SDR_spec_RIconcat
     elif(args.eval_type == 'SI_SDR_spec_RIconcat'):
         Eval = SI_SDR_spec_RIconcat
+    elif(args.eval_type == 'SI_SDR_complex_ipd'):
+        Eval = SI_SDR_complex_ipd
     elif(args.eval_type == 'srcIndepSDR_Cproj_by_SShat'):
         #Eval = srcIndepSDR_Cproj_by_SShat
         print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
@@ -320,8 +324,8 @@ def main(args):
 
     if(args.eval2_type == 'sInvSDR_time'):
         Eval2 = sInvSDR_time
-    elif(args.eval2_type == 'sInvSDR_spec'):
-        Eval2 = sInvSDR_spec
+    elif(args.eval2_type == 'SD_SDR_complex_ipd'):
+        Eval2 = SD_SDR_complex_ipd
     elif(args.eval2_type == 'sInvSDR_mag'):
         Eval2 = sInvSDR_mag
     elif(args.eval2_type == 'srcIndepSDR_mag'):
@@ -330,6 +334,8 @@ def main(args):
         Eval2 = SD_SDR_spec_RIconcat
     elif(args.eval2_type == 'SI_SDR_spec_RIconcat'):
         Eval2 = SI_SDR_spec_RIconcat
+    elif(args.eval2_type == 'SI_SDR_complex_ipd'):
+        Eval2 = SI_SDR_complex_ipd
     elif(args.eval2_type == 'srcIndepSDR_Cproj_by_WH'):
         Eval2 = srcIndepSDR_Cproj_by_WH
     elif(args.eval2_type == 'srcIndepSDR_Cproj_by_SShat'):
