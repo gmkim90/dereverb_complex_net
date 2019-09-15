@@ -87,6 +87,12 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
     elif(loss_type == 'srcIndepSDR_freqpower_by_enhanced'):
         #loss = Loss(out_real, out_imag, len_STFT_cl) # WRONG SIGN
         loss = -Loss(out_real, out_imag, len_STFT_cl) # loss = -SDR
+    elif(loss_type == 'sInvSDR_time'):
+        mixed_time, clean_time, len_time = input[3], input[4].cuda(), input[5]
+        out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
+        for i, l in enumerate(len_time):  # zero padding to output audio
+            out_audio[i, l:] = 0
+        loss = -Loss(clean_time, out_audio)
     elif(loss_type == 'srcIndepSDR_mag' or loss_type == 'srcIndepSDR_freqpower'
     or loss_type == 'srcIndepSDR_mag_diffperT' or loss_type == 'srcIndepSDR_freqpower_diffperT'
     or loss_type == 'srcIndepSDR_Cproj_by_WH'):
@@ -114,6 +120,7 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
 
         #loss, Cmag = Loss(Wreal, Wimag, Hreal, Himag, len_STFT_cl)
         loss = -Loss(Wreal, Wimag, Hreal, Himag, len_STFT_cl) # loss = -SDR
+
 
     if(mode == 'generate' and save_activation): # generate spectroram
         specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
@@ -262,13 +269,12 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
         #return loss, eval_metric, eval2_metric, Cmag
 
 
-    if(save_wav):
-        assert(not data_type == 'train') # currently, save_wav is not allowed for train (but allowed in 'trsub', val, test etc)
-        #pdb.set_trace()
-        mixed_time, clean_time, len_time = input[3], input[4], input[5]
-        out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
-        for i, l in enumerate(len_time):  # zero padding to output audio
-            out_audio[i, l:] = 0
+    if(save_wav and not data_type == 'train'):
+        if(not loss_type == 'sInvSDR_time'):
+            mixed_time, clean_time, len_time = input[3], input[4], input[5]
+            out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
+            for i, l in enumerate(len_time):  # zero padding to output audio
+                out_audio[i, l:] = 0
 
         # write wav
         T0 = len_time[0].item()

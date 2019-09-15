@@ -24,47 +24,12 @@ import pdb
 from essential import forward_common
 from config import get_config
 
-
-# memory leakage debug
-'''
-import tracemalloc
-snapshot = None
-def trace_print(logfile):
-    global snapshot
-    snapshot2 = tracemalloc.take_snapshot()
-    snapshot2 = snapshot2.filter_traces((
-        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
-        tracemalloc.Filter(False, "<frozen importlib._bootstrap_external>"),
-        tracemalloc.Filter(False, "<unknown>"),
-        tracemalloc.Filter(False, tracemalloc.__file__)
-    ))
-
-    if snapshot is not None:
-        if(logfile is not None):
-            logfile.write("================================== Begin Trace: \n")
-        print("================================== Begin Trace:")
-        top_stats = snapshot2.compare_to(snapshot, 'lineno', cumulative=True)
-        for stat in top_stats[:100]:
-            #pdb.set_trace()
-            #logfile.write(stat)
-            if (logfile is not None):
-                if(stat.count > 0):
-                    info = stat.traceback[0].filename + ':' + str(stat.traceback[0].lineno) + \
-                           ' size=' + str(stat.size/1024) + ' KiB (' + str(stat.size_diff/1024) + '), count=' + str(stat.count) + ' (' + str(stat.count_diff) + '), average=' + str(stat.size/stat.count/1024) + ' KiB'
-                else:
-                    info = stat.traceback[0].filename + ':' + str(stat.traceback[0].lineno) + \
-                           ' size=' + str(stat.size/1024) + ' KiB (' + str(stat.size_diff/1024) + '), count=' + str(stat.count) + ' (' + str(stat.count_diff) + ')'
-
-                logfile.write(info + '\n')
-            print(stat)
-    snapshot = snapshot2
-'''
-#@memprof(threshold = 10240)
 def main(args):
     #print('!!!!!!!!!!!!!!!!! USING MEM DEBUG FILE !!!!!!!!!!!!!!!!!!!!')
     #mem_debug_file = open('mem_debug_file_' + str(args.expnum) + '.txt', 'w')
     #tracemalloc.start()
     assert (args.expnum >= 1)
+
     if (args.mic_sampling == 'ref_manual'):
         args.subset1 = args.subset1.split(',')  # string to list
         args.subset2 = args.subset2.split(',')  # string to list
@@ -180,7 +145,7 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list, nSource=args.nSource,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_tr) # start_ratio, end_ratio only for training dataset
+                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
@@ -214,7 +179,7 @@ def main(args):
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
-    if(args.eval_iter == 0):
+    if(args.eval_iter == 0 or args.eval_iter > len(train_loader)):
         args.eval_iter = len(train_loader)
 
     torch.set_printoptions(precision=10, profile="full")
@@ -468,7 +433,8 @@ def main(args):
                     loss, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type, args.eval_type, args.eval2_type,
                                                                      stride_product_time, mode='train', Eval=Eval, Eval2=Eval2,
-                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps)
+                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps,
+                                       save_wav=args.save_wav, istft=istft)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -484,7 +450,8 @@ def main(args):
                     loss, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type, args.eval_type, args.eval2_type,
                                        stride_product_time, mode='train', expnum=args.expnum, Eval=Eval, Eval2=Eval2,
-                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps)
+                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps,
+                                       save_wav=args.save_wav, istft=istft)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')

@@ -26,7 +26,7 @@ parser.add_argument('--end_ratio', default=1.0, type=float)
 parser.add_argument('--load_IR', default=True, type=str2bool)
 #parser.add_argument('--idx_to_val_postfix', default='', type=str)
 parser.add_argument('--pos_val_postfix', default='', type=str)
-parser.add_argument('--src_range', default='0, 100, 0, 100, 0, 100', type=str, help = 'string with delimiter , & splited len should be 6 or 12')
+parser.add_argument('--src_range', default='0,100,0,100,0,100', type=str, help = 'string with delimiter , & splited len should be 6 or 12')
 parser.add_argument('--directivity', default='hyper', type=str, help = 'omni(omnidirectional) | hyper(hypercardioid)')
 parser.add_argument('--use_localization', default=False, type=str2bool)
 
