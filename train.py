@@ -43,37 +43,43 @@ def main(args):
     #pdb.set_trace()
     if(not args.mode == 'generate'): # for generation mode, please manually write manifest
         if(args.grid_cm > 0):
-            if(args.grid_cm == 1):
-                # new data (large room, fixed mic)
-                #pdb.set_trace()
-                if(len(args.tr_manifest) == 0):
-                    args.tr_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_tr.csv'
+            if(args.fix_src):
+                args.tr_manifest = prefix + 'L553_30cm_30cm_' + str(args.grid_cm) + 'cm_nSrc_' + str(args.fix_src_n) + '.csv'
 
-                if(args.save_wav and len(args.trsub_manifest) == 0):
-                    args.trsub_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_trsub_8samples.csv'
-
-                if (len(args.val_manifest) == 0):
-                    args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
-
-                '''
-                if (len(args.te1_manifest) == 0):
-                    args.te1_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_te1.csv'
-                if(len(args.te2_manifest) == 0):
-                    args.te2_manifest = prefix + 'L553_fixedmic_randomsrc_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_te2.csv'
-                '''
-                # old data (too small room, mic not fixed)
-                '''
-                args.tr_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_tr.csv'
-                args.val_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_val.csv'
-                args.te1_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_te1.csv'
-                args.te2_manifest = prefix + 'reverb_L221_randomrange_1cm_RT0.25_IR+Src_te2.csv'
-                '''
-                #args.load_IR = True # True by default
+                # comparison purpose
+                args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
             else:
-                args.tr_manifest = prefix + 'L221_10105_grid' + str(args.grid_cm) + 'cm' + '_tr_exists_only.csv'
-                args.val_manifest = prefix + 'L221_10105_grid10cm_val_1per.csv' # mini valid set
-                #args.te1_manifest = prefix + 'L221_10105_grid' + str(args.grid_cm) + 'cm' + '_te.csv'
-                args.te1_manifest = ''
+                if(args.grid_cm == 1):
+                    # new data (large room, fixed mic)
+                    #pdb.set_trace()
+                    if(len(args.tr_manifest) == 0):
+                        args.tr_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_tr.csv'
+
+                    if(args.save_wav and len(args.trsub_manifest) == 0):
+                        args.trsub_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_trsub_8samples.csv'
+
+                    if (len(args.val_manifest) == 0):
+                        args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
+
+                    '''
+                    if (len(args.te1_manifest) == 0):
+                        args.te1_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_te1.csv'
+                    if(len(args.te2_manifest) == 0):
+                        args.te2_manifest = prefix + 'L553_fixedmic_randomsrc_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT0.2_te2.csv'
+                    '''
+                    # old data (too small room, mic not fixed)
+                    '''
+                    args.tr_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_tr.csv'
+                    args.val_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_val.csv'
+                    args.te1_manifest = prefix + 'reverb_L221_fixedrange_1cm_RT0.25_IR+Src_te1.csv'
+                    args.te2_manifest = prefix + 'reverb_L221_randomrange_1cm_RT0.25_IR+Src_te2.csv'
+                    '''
+                    #args.load_IR = True # True by default
+                else:
+                    args.tr_manifest = prefix + 'L221_10105_grid' + str(args.grid_cm) + 'cm' + '_tr_exists_only.csv'
+                    args.val_manifest = prefix + 'L221_10105_grid10cm_val_1per.csv' # mini valid set
+                    #args.te1_manifest = prefix + 'L221_10105_grid' + str(args.grid_cm) + 'cm' + '_te.csv'
+                    args.te1_manifest = ''
 
         if(args.mode == 'RT_analysis'):
             args.tr_manifest = prefix + 'reverb_tr_simu_8ch_RT60.csv'
@@ -142,7 +148,8 @@ def main(args):
     #utils.CPUmemDebug('before dataset init',mem_debug_file)
     if (len(args.tr_manifest) > 0):
         train_dataset = SpecDataset(manifest_path=args.tr_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
-                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list, nSource=args.nSource,
+                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list,
+                                    nSource=args.nSource,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav)
@@ -150,7 +157,8 @@ def main(args):
 
     if (len(args.trsub_manifest) > 0):
         trsub_dataset = SpecDataset(manifest_path=args.trsub_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
-                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list, nSource=args.nSource,
+                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list,
+                                    nSource=args.nSource,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav)
@@ -160,21 +168,24 @@ def main(args):
 
     if (len(args.val_manifest) > 0):
         val_dataset = SpecDataset(manifest_path=args.val_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
-                                  load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
+                                  load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
+                                  nSource=args.nSource,
                                   clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                   interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
         test1_dataset = SpecDataset(manifest_path=args.te1_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
-                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
+                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
+                                    nSource=args.nSource,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
         test2_dataset = SpecDataset(manifest_path=args.te2_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
-                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range='all', nSource=args.nSource,
+                                    load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
+                                    nSource=args.nSource,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)

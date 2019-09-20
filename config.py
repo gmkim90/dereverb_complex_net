@@ -16,7 +16,12 @@ parser.add_argument('--val_manifest', default='', type=str)
 #parser.add_argument('--te_smallset_manifest', default='data_sorted/reverb_et_hard6cases_simu_8ch_paired.csv', type=str)
 parser.add_argument('--te1_manifest', default='', type=str)
 parser.add_argument('--te2_manifest', default='', type=str)
+
 parser.add_argument('--nSource', default=1, type=int)
+
+parser.add_argument('--fix_src', default=False, type=str2bool)
+parser.add_argument('--fix_src_n', default=0, type=int)
+
 parser.add_argument('--do_log', default=True, type=str2bool)
 parser.add_argument('--save_activation', default=False, type=str2bool)
 
