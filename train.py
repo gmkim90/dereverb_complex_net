@@ -45,10 +45,12 @@ def main(args):
     if(not args.mode == 'generate'): # for generation mode, please manually write manifest
         if(args.grid_cm > 0):
             if(args.fix_src):
-                args.tr_manifest = prefix + 'L553_30cm_30cm_' + str(args.grid_cm) + 'cm_nSrc_' + str(args.fix_src_n) + '.csv'
+                if(len(args.tr_manifest) == 0):
+                    args.tr_manifest = prefix + 'L553_30cm_30cm_' + str(args.grid_cm) + 'cm_nSrc_' + str(args.fix_src_n) + '.csv'
 
                 # comparison purpose
-                args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
+                #if(len(args.val_manifest) == 0):
+                    #args.val_manifest = prefix + 'L553_fixedmic_' + args.directivity + '_' + str(args.grid_cm) + 'cm' + '_RT' + str(args.RT) + '_val.csv'
             else:
                 if(args.grid_cm == 1):
                     # new data (large room, fixed mic)
