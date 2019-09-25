@@ -5,7 +5,7 @@ import torch
 import scipy.io as sio
 import pdb
 
-def sInvSDR_time(clean, clean_est, eps=1e-10): # scale invariant SDR loss function
+def sInvSDR_time(clean, clean_est, eps=1e-12): # scale invariant SDR loss function
     # Batched audio inputs shape (N x T) required.
     bsum = lambda x: torch.sum(x, dim=1) # Batch preserving sum for convenience.
     correlation = bsum(clean * clean_est)
@@ -414,7 +414,7 @@ def srcIndepSDR_Cproj_by_WH(Wreal, Wimag, Hreal, Himag, Tlist, eps=1e-6):  # sca
 
     return sInvSDR  #minibatchx1
 
-def srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-12):  # scale invariant SDR loss function
+def srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-20):  # scale invariant SDR loss function
     # H, W: NxMxFxT
     # Tlist: Nx1
     N, F, Tmax = clean_real.size()
@@ -428,30 +428,60 @@ def srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist
 
     #pdb.set_trace()
 
-    #Cref = torch.sqrt(1/(Tlist*F)).unsqueeze(1).unsqueeze(2).expand_as(Cmag) # Nx1 --> NxFxT (don't need expand_as)
+    # Ver 1. SDR value different from matlab & online version
+    '''
     Cref = torch.sqrt(1 / (Tlist.float().cuda() * F)).unsqueeze(1).unsqueeze(2) # Nx1 --> Nx1x1
+    for n in range(N):
+        t = Tlist[n]
+        Cref[:, :, t:].fill_(0)
+    '''
+
+    # Ver 2. correct & memory efficient
+    # 2-1. cannot be backpropable (inplace operation)
+    '''
+    Ctarget_scale = torch.FloatTensor(N).cuda() #--> cannot be backpropable (inplace operation)
+    for n in range(N):
+        t = Tlist[n]
+        Ctarget_scale[n] = torch.sum(torch.sum(Cmag[n, :, :t], dim=1), dim=0)/(t*F)
+        #Ctarget_pow[n] = Ctarget_scale[n]*Ctarget_scale[n]*t*F
+    '''
+    # 2-2.
+    Tlist_float = Tlist.float().cuda()
+
+    # use of below operation & sqrt makes Cmag not back-propable (in-place operation)
+    '''
+    for n in range(N):
+        t = Tlist[n]
+        #Cmag[n, :, t:].fill_(0)
+        Cmag[n, :, t:] = 0
+    '''
+    Ctarget_scale = torch.sum(torch.sum(Cmag, dim=2), dim=1)/(Tlist_float*F)
+
+    Cdistortion = Cmag-Ctarget_scale.unsqueeze(1).unsqueeze(2)
+    Ctarget_pow = Ctarget_scale*Ctarget_scale*Tlist_float*F
 
     # make garbage frame zero
     for n in range(N):
         t = Tlist[n]
-        Cref[:, :, t:] = 0
+        #Cdistortion[n, :, t:].fill_(0)
+        Cdistortion[n, :, t:] = 0
 
     # project to Cmag to Cref (L2-norm=1)
-    inner_prod = torch.sum(torch.sum(Cmag*Cref, dim=2), dim=1) # sum((NxFxT)*(Nx1x1)) = Nx1
-    Ctarget = inner_prod.unsqueeze(1).unsqueeze(2)*Cref  # (Nx1x1)*(Nx1x1) = (Nx1x1)
-    Cdistortion = Cmag-Ctarget # (NxFxT)-(Nx1x1) = (NxFxT)
+    #inner_prod = torch.sum(torch.sum(Cmag*Cref, dim=2), dim=1) # sum((NxFxT)*(Nx1x1)) = Nx1
+    #Ctarget = inner_prod.unsqueeze(1).unsqueeze(2)*Cref  # (Nx1x1)*(Nx1x1) = (Nx1x1)
+    #Cdistortion = Cmag-Ctarget # (NxFxT)-(Nx1x1) = (NxFxT)
 
-    Ctarget_pow = inner_prod*inner_prod # Nx1
+    #Ctarget_pow = inner_prod*inner_prod # Nx1
     Cdistortion_pow = torch.sum(torch.sum(Cdistortion*Cdistortion, dim=2), dim=1) # Nx1
 
     sInvSDR = 10*(torch.log10(Ctarget_pow + eps) - torch.log10(Cdistortion_pow + eps))
 
-    # sio.savemat('SI-SShat.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(),
-    #                               'out_real':out_real.data.cpu().numpy(),
-    #                               'out_imag':out_imag.data.cpu().numpy(),
-    #                              'Cr':Cr.data.cpu().numpy(),
-    #                              'Ci':Ci.data.cpu().numpy(),
-    #                              'sInvSDR':sInvSDR.data.cpu().numpy()})
+    #sio.savemat('SI-SShat.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(),
+#                                   'out_real':out_real.data.cpu().numpy(),
+#                                   'out_imag':out_imag.data.cpu().numpy(),
+#                                  'Cr':Cr.data.cpu().numpy(),
+#                                  'Ci':Ci.data.cpu().numpy(),
+#                                  'sInvSDR':sInvSDR.data.cpu().numpy()})
 
     return sInvSDR  #minibatchx1
 

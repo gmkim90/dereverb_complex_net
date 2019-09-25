@@ -21,6 +21,8 @@ parser.add_argument('--nSource', default=1, type=int)
 
 parser.add_argument('--fix_src', default=False, type=str2bool)
 parser.add_argument('--fix_src_n', default=0, type=int)
+parser.add_argument('--skip_if_gen_exists', default=False, type=str2bool)
+
 
 parser.add_argument('--do_log', default=True, type=str2bool)
 parser.add_argument('--save_activation', default=False, type=str2bool)
@@ -107,7 +109,7 @@ parser.add_argument('--num_epochs', default=500, type=int, help='train epochs nu
 parser.add_argument('--log_iter', default=10, type=int)
 parser.add_argument('--eval_iter', default=0, type=int, help = 'if 0, it will be set to #iter per epoch (= len(train_loader))')
 parser.add_argument('--lR0', default=1e-4, type=float)
-parser.add_argument('--eps', default=1e-12, type=float)
+parser.add_argument('--eps', default=1e-20, type=float)
 parser.add_argument('--start_epoch', default=0, type=int, help = 'if > 0, resume training from end of the train')
 
 #parser.add_argument('--clamp_src', default=0, type=int, help = 'if > 0, clamp clean source of front/end. (i.e., clamp front/end silence)')

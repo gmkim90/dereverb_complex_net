@@ -25,6 +25,7 @@ from essential import forward_common
 from config import get_config
 
 def main(args):
+    #torch.autograd.set_detect_anomaly(True)
     #print('!!!!!!!!!!!!!!!!! USING MEM DEBUG FILE !!!!!!!!!!!!!!!!!!!!')
     #mem_debug_file = open('mem_debug_file_' + str(args.expnum) + '.txt', 'w')
     #tracemalloc.start()
@@ -189,9 +190,6 @@ def main(args):
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
-
-    if(args.eval_iter == 0 or args.eval_iter > len(train_loader)):
-        args.eval_iter = len(train_loader)
 
     torch.set_printoptions(precision=10, profile="full")
     #utils.CPUmemDebug('after dataset init', mem_debug_file)
@@ -371,6 +369,9 @@ def main(args):
     #utils.CPUmemDebug('after network init', mem_debug_file)
 
     if(args.mode == 'train'):
+        if (args.eval_iter == 0 or args.eval_iter > len(train_loader)):
+            args.eval_iter = len(train_loader)
+
         if(args.start_epoch > 0):
             print('training starts from epoch '+ str(args.start_epoch))
 
@@ -692,30 +693,32 @@ def main(args):
 
             if (len(args.tr_manifest) > 0):
                 for _, input in enumerate(tqdm(train_loader)):
-                #for _, input in tqdm(enumerate(train_loader)):
-                #for _, input in enumerate(train_loader):
-                    loss, eval_metric, eval2_metric = forward_common(input, net, Loss, 'tr', args.loss_type, args.eval_type, args.eval2_type,
-                                                                        stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
-                                                                        Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count, use_pos=args.ec_decomposition
-                                                                        ,save_activation=args.save_activation, eps=args.eps)
-                    reverb_paths = []
-                    for n in range(input[0].size(0)):
-                        reverb_paths.append(input[3][n])
                     count = count + 1
-                    if (eval2_metric is None):
-                        sio.savemat('specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat',
-                                    {'loss': loss.data.cpu().numpy(), 'eval': eval_metric.data.cpu().numpy(),
-                                     'reverb_path': np.asarray(tuple(reverb_paths))}) # no Cmag to save
+                    if(args.skip_if_gen_exists and os.path.exists('specs/' + str(args.expnum) + '/SDR_tr_' + str(count+1) + '.mat')):
+                        print('skip generating ' + 'specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat')
                     else:
-                        sio.savemat('specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat',
-                                {'loss': loss.data.cpu().numpy(), 'eval': eval_metric.data.cpu().numpy(),
-                                 'eval2': eval2_metric.data.cpu().numpy(),
-                                 'reverb_path': np.asarray(tuple(reverb_paths))})  # no Cmag to save
+                        loss, eval_metric, eval2_metric = forward_common(input, net, Loss, 'tr', args.loss_type, args.eval_type, args.eval2_type,
+                                                                            stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
+                                                                            Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count, use_pos=args.ec_decomposition
+                                                                            ,save_activation=args.save_activation, eps=args.eps)
+                        reverb_paths = []
+                        for n in range(input[0].size(0)):
+                            reverb_paths.append(input[3][n])
 
-                    eval_metric_total += eval_metric.mean().item()
-                    if(count == args.nGenerate):
-                        break
-                eval_metric_total = eval_metric_total/count
+                        if (eval2_metric is None):
+                            sio.savemat('specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat',
+                                        {'loss': loss.data.cpu().numpy(), 'eval': eval_metric.data.cpu().numpy(),
+                                         'reverb_path': np.asarray(tuple(reverb_paths))}) # no Cmag to save
+                        else:
+                            sio.savemat('specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat',
+                                    {'loss': loss.data.cpu().numpy(), 'eval': eval_metric.data.cpu().numpy(),
+                                     'eval2': eval2_metric.data.cpu().numpy(),
+                                     'reverb_path': np.asarray(tuple(reverb_paths))})  # no Cmag to save
+
+                        eval_metric_total += eval_metric.mean().item()
+                        if(count == args.nGenerate):
+                            break
+                    eval_metric_total = eval_metric_total/count
                 print('tr SDR = ' + str(eval_metric_total))
             else:
                 print('NO TRAINING MANIFEST')

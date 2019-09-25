@@ -159,32 +159,6 @@ def forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type
                                     'out_real': out_real.data.cpu().numpy(), 'out_imag':out_imag.data.cpu().numpy(),
                                     'mask_real':mask_real.data.cpu().numpy(), 'mask_imag':mask_imag.data.cpu().numpy()})
 
-
-
-
-        '''
-        elif(len(net_out_list) == 7): # TODO. need to be modified
-            Wer = net_out_list[1]
-            Wei = net_out_list[2]
-            Wcr = net_out_list[3]
-            Wci = net_out_list[4]
-            Wbr = net_out_list[5]
-            Wbi = net_out_list[6]
-
-            if(count > 0):
-                sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
-                                    'out_real': out_list[0].data.cpu().numpy(), 'out_imag':out_list[1].data.cpu().numpy(),
-                                    'clean_real': clean_real.data.cpu().numpy(), 'clean_imag':clean_imag.data.cpu().numpy(),
-                                     'Wer':Wer.data.cpu().numpy(), 'Wei':Wei.data.cpu().numpy(),
-                                     'Wcr':Wcr.data.cpu().numpy(), 'Wci':Wci.data.cpu().numpy()})
-            else:
-                sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
-                                    'out_real': out_list[0].data.cpu().numpy(), 'out_imag':out_list[1].data.cpu().numpy(),
-                                    'clean_real': clean_real.data.cpu().numpy(), 'clean_imag':clean_imag.data.cpu().numpy(),
-                                     'Wer':Wer.data.cpu().numpy(), 'Wei':Wei.data.cpu().numpy(),
-                                     'Wcr':Wcr.data.cpu().numpy(), 'Wci':Wci.data.cpu().numpy(),
-                                     'Wbr':Wbr.data.cpu().numpy(), 'Wbi':Wbi.data.cpu().numpy()})
-        '''
     if(loss_type == eval_type):
         eval_metric = -loss
     elif(eval_type == 'srcIndepSDR_freqpower_by_enhanced'):
