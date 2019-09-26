@@ -18,7 +18,8 @@ def sInvSDR_time(clean, clean_est, eps=1e-12): # scale invariant SDR loss functi
 
     return sInvSDR # #minibatchx1
 
-def SD_SDR_complex_ipd(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
+def SD_SDR_complex_ipd(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-12): # scale invariant SDR loss function
+    # Tlist as dummy variable
 
     inner_product = torch.sum(torch.sum(clean_real*out_real + clean_imag*out_imag, dim=2), dim=1) # Re(x^Hy)
     power_clean = torch.sum(torch.sum(clean_real*clean_real + clean_imag*clean_imag, dim=2), dim=1)
@@ -35,7 +36,9 @@ def SD_SDR_complex_ipd(clean_real, clean_imag, out_real, out_imag, eps=1e-12): #
     #return torch.mean(wSDR) # scalar
     return sInvSDR # #
 
-def SD_SDR_spec_RIconcat(clean_real, clean_imag, out_real, out_imag, eps=1e-12): # scale invariant SDR loss function
+def SD_SDR_spec_RIconcat(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-12): # scale invariant SDR loss function
+    # Tlist as dummy variable
+
     # concat real & imag: {(NxFxT), (NxFxT)} --> (Nx2FxT)
 
     clean = torch.cat((clean_real, clean_imag), dim=1)
@@ -62,9 +65,36 @@ def var_time(W):
 
     return var
 
-#def sInvSDR_mag(clean_mag, output_mag, eps=1e-10): # scale invariant SDR loss function
-def sInvSDR_mag(clean_real, clean_imag, output_real, output_imag, eps=1e-10):  # scale invariant SDR loss function
-#def sInvSDR_mag(clean_real, clean_imag, output_list, eps=1e-10):  # scale invariant SDR loss function
+def SDR_em_realimag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):  # scale invariant SDR loss function
+    # Tlist as dummy variable
+
+    signal_power = torch.sum(torch.sum(clean_real*clean_real + clean_imag*clean_imag, dim=2), dim=1)
+
+    distortion_real = output_real-clean_real
+    distortion_imag = output_imag-clean_imag
+    distortion_power = torch.sum(torch.sum(distortion_real*distortion_real + distortion_imag*distortion_imag, dim=2), dim=1)
+
+    SDR = 10*(torch.log10(signal_power+eps) - torch.log10(distortion_power+eps))
+
+    return SDR # #minibatchx1
+
+
+def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):  # scale invariant SDR loss function
+    # Tlist as dummy variable
+
+    clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
+    output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)
+    signal_power = torch.sum(torch.sum(clean_mag*clean_mag, dim=2), dim=1)
+
+    distortion_mag = output_mag-clean_mag
+    distortion_power = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    SDR = 10*(torch.log10(signal_power+eps) - torch.log10(distortion_power+eps))
+
+    return SDR # #minibatchx1
+
+def sInvSDR_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):  # scale invariant SDR loss function
+    # Tlist as dummy variable
 
     # add eps for gradient explosion at sqrt(x)=0
     clean_pow = clean_real*clean_real + clean_imag*clean_imag + eps # NxFxT

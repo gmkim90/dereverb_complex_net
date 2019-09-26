@@ -10,9 +10,9 @@ import gc
 
 import utils
 from utils import get_stride_product_time, count_parameters
-from models.loss import cossim_time, cossim_spec, cossim_mag, sInvSDR_time, SD_SDR_complex_ipd, negative_MSE, sInvSDR_mag, \
-    srcIndepSDR_mag, srcIndepSDR_freqpower, srcIndepSDR_mag_diffperT, srcIndepSDR_freqpower_diffperT, srcIndepSDR_freqpower_by_enhanced, \
-    srcIndepSDR_Cproj_by_WH, srcIndepSDR_Cproj_by_SShat, SI_SDR_spec_RIconcat, SD_SDR_spec_RIconcat, SI_SDR_complex_ipd
+
+import models.loss as losses
+
 import pickle
 from se_dataset import SpecDataset
 from torch.utils.data import DataLoader
@@ -197,153 +197,22 @@ def main(args):
     #utils.CPUmemDebug('after dataset init', mem_debug_file)
 
     # Set loss type
-    if(args.loss_type == 'cossim_time'):
-        Loss = cossim_time
-    elif(args.loss_type == 'cossim_spec'):
-        Loss = cossim_spec
-    elif(args.loss_type == 'cossim_mag'):
-        Loss = cossim_mag
-    elif(args.loss_type == 'sInvSDR_time'):
-        Loss = sInvSDR_time
-    elif (args.loss_type == 'SD_SDR_complex_ipd'):
-        Loss = SD_SDR_complex_ipd
-    elif (args.loss_type == 'sInvSDR_mag'):
-        Loss = sInvSDR_mag
-    elif(args.loss_type == 'srcIndepSDR_mag'):
-        Loss = srcIndepSDR_mag
-    elif(args.loss_type == 'srcIndepSDR_Cproj_by_WH'):
-        Loss = srcIndepSDR_Cproj_by_WH
-    elif(args.loss_type == 'SD_SDR_spec_RIconcat'):
-        Loss = SD_SDR_spec_RIconcat
-    elif(args.loss_type == 'SI_SDR_spec_RIconcat'):
-        Loss = SI_SDR_spec_RIconcat
-    elif(args.loss_type == 'SI_SDR_complex_ipd'):
-        Loss = SI_SDR_complex_ipd
-    elif(args.loss_type == 'srcIndepSDR_Cproj_by_SShat'):
-        #Loss = srcIndepSDR_Cproj_by_SShat
-        print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
-        Loss = lambda clean_real, clean_imag, out_real, out_imag, Tlist: srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist, args.eps)
+    if(len(args.loss_type) > 0):
+        Loss = getattr(losses, args.loss_type)
+    else:
+        Loss = None
 
-    elif(args.loss_type == 'srcIndepSDR_freqpower'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq*weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf/Pf_sum # normalize
-
-        Loss = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif(args.loss_type == 'srcIndepSDR_mag_diffperT'):
-        Loss = srcIndepSDR_mag_diffperT
-    elif(args.loss_type == 'srcIndepSDR_freqpower_diffperT'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-
-        Loss = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower_diffperT(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-
-    elif(args.loss_type == 'negative_MSE'):
-        Loss = negative_MSE
-
-    elif(args.loss_type == 'srcIndepSDR_freqpower_by_enhanced'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-
-        Loss = lambda out_real, out_imag, Tlist: srcIndepSDR_freqpower_by_enhanced(out_real, out_imag, Tlist, Pf)
-
-
-
-    if(args.eval_type == 'sInvSDR_time'):
-        Eval = sInvSDR_time
-    elif(args.eval_type == 'SD_SDR_complex_ipd'):
-        Eval = SD_SDR_complex_ipd
-    elif(args.eval_type == 'sInvSDR_mag'):
-        Eval = sInvSDR_mag
-    elif(args.eval_type == 'srcIndepSDR_mag'):
-        Eval = srcIndepSDR_mag
-    elif (args.eval_type == 'srcIndepSDR_freqpower'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-        Eval = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif(args.eval_type == 'srcIndepSDR_mag_diffperT'):
-        Eval = srcIndepSDR_mag_diffperT
-    elif(args.eval_type == 'srcIndepSDR_Cproj_by_WH'):
-        Eval = srcIndepSDR_Cproj_by_WH
-    elif(args.eval_type == 'SD_SDR_spec_RIconcat'):
-        Eval = SD_SDR_spec_RIconcat
-    elif(args.eval_type == 'SI_SDR_spec_RIconcat'):
-        Eval = SI_SDR_spec_RIconcat
-    elif(args.eval_type == 'SI_SDR_complex_ipd'):
-        Eval = SI_SDR_complex_ipd
-    elif(args.eval_type == 'srcIndepSDR_Cproj_by_SShat'):
-        #Eval = srcIndepSDR_Cproj_by_SShat
-        print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
-        Eval = lambda clean_real, clean_imag, out_real, out_imag, Tlist: srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist, args.eps)
-    elif (args.eval_type == 'srcIndepSDR_freqpower_diffperT'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-        Eval = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower_diffperT(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif(args.eval_type == 'srcIndepSDR_freqpower_by_enhanced'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-
-        Eval = lambda out_real, out_imag, Tlist: srcIndepSDR_freqpower_by_enhanced(out_real, out_imag, Tlist, Pf)
+    if(len(args.eval_type) > 0):
+        Eval = getattr(losses, args.eval_type)
     else:
         Eval = None
 
-    if(args.eval2_type == 'sInvSDR_time'):
-        Eval2 = sInvSDR_time
-    elif(args.eval2_type == 'SD_SDR_complex_ipd'):
-        Eval2 = SD_SDR_complex_ipd
-    elif(args.eval2_type == 'sInvSDR_mag'):
-        Eval2 = sInvSDR_mag
-    elif(args.eval2_type == 'srcIndepSDR_mag'):
-        Eval2 = srcIndepSDR_mag
-    elif(args.eval2_type == 'SD_SDR_spec_RIconcat'):
-        Eval2 = SD_SDR_spec_RIconcat
-    elif(args.eval2_type == 'SI_SDR_spec_RIconcat'):
-        Eval2 = SI_SDR_spec_RIconcat
-    elif(args.eval2_type == 'SI_SDR_complex_ipd'):
-        Eval2 = SI_SDR_complex_ipd
-    elif(args.eval2_type == 'srcIndepSDR_Cproj_by_WH'):
-        Eval2 = srcIndepSDR_Cproj_by_WH
-    elif(args.eval2_type == 'srcIndepSDR_Cproj_by_SShat'):
-        #Eval2 = srcIndepSDR_Cproj_by_SShat
-        print('srcIndepSDR_Cproj_by_SShat, eps = ' + str(args.eps))
-        Eval2 = lambda clean_real, clean_imag, out_real, out_imag, Tlist: srcIndepSDR_Cproj_by_SShat(clean_real, clean_imag, out_real, out_imag, Tlist, args.eps)
-    elif (args.eval2_type == 'srcIndepSDR_freqpower'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-        Eval2 = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif(args.eval2_type == 'srcIndepSDR_mag_diffperT'):
-        Eval2 = srcIndepSDR_mag_diffperT
-    elif (args.eval2_type == 'srcIndepSDR_freqpower_diffperT'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-        Eval2 = lambda Wreal, Wimag, Hreal, Himag, Tlist: srcIndepSDR_freqpower_diffperT(Wreal, Wimag, Hreal, Himag, Tlist, Pf)
-    elif(args.eval2_type == 'srcIndepSDR_freqpower_by_enhanced'):
-        weights_per_freq = torch.load('weights_per_freq_' + str(args.nFFT) + '.pth').cuda()
-        Pf = weights_per_freq * weights_per_freq
-        Pf_sum = Pf.sum()
-        Pf = Pf / Pf_sum  # normalize
-
-        Eval2 = lambda out_real, out_imag, Tlist: srcIndepSDR_freqpower_by_enhanced(out_real, out_imag, Tlist, Pf)
+    if (len(args.eval2_type) > 0):
+        Eval2 = getattr(losses, args.eval2_type)
     else:
         Eval2 = None
 
     # Network
-    #utils.CPUmemDebug('before network init', mem_debug_file)
     if(args.model_type == 'unet'):
         from models.unet import Unet
         json_path = os.path.join(args.model_json)
@@ -447,16 +316,16 @@ def main(args):
                     loss, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type, args.eval_type, args.eval2_type,
                                                                      stride_product_time, mode='train', Eval=Eval, Eval2=Eval2,
-                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps,
-                                       save_wav=args.save_wav, istft=istft)
+                                       fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
                         logger.write('NaN is detected on loss, terminate program' + '\n')
                         sys.exit()
                     loss_mb += loss_mean.item()
-                    eval_metric_mean = torch.mean(eval_metric).item()
-                    eval_metric_mb += float(eval_metric_mean)
+                    if(eval_metric is not None):
+                        eval_metric_mean = torch.mean(eval_metric).item()
+                        eval_metric_mb += float(eval_metric_mean)
                     if(eval2_metric is not None):
                         eval2_metric_mean = torch.mean(eval2_metric).item()
                         eval2_metric_mb += float(eval2_metric_mean)
@@ -464,28 +333,29 @@ def main(args):
                     loss, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type, args.eval_type, args.eval2_type,
                                        stride_product_time, mode='train', expnum=args.expnum, Eval=Eval, Eval2=Eval2,
-                                       fix_len_by_cl=args.fix_len_by_cl, use_pos=args.ec_decomposition, eps=args.eps,
-                                       save_wav=args.save_wav, istft=istft)
+                                       fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
                         logger.write('NaN is detected on loss, terminate program' + '\n')
                         sys.exit()
-                    eval_metric_mean = torch.mean(eval_metric).item()
                     loss_mb += loss_mean.item()
-                    eval_metric_mb += float(eval_metric_mean)
+                    if(eval_metric is not None):
+                        eval_metric_mean = torch.mean(eval_metric).item()
+                        eval_metric_mb += float(eval_metric_mean)
                     if(eval2_metric is not None):
                         eval2_metric_mean = torch.mean(eval2_metric).item()
                         eval2_metric_mb += float(eval2_metric_mean)
                     print('train, epoch: ' + str(epoch) + ', loss: ' + str(loss_mean.item()))
-                    print('train, epoch: ' + str(epoch) + ', eval_metric: ' + str(eval_metric_mean))
-                    if(logger is not None):
-                        logger.write('train, epoch: ' + str(epoch) + ', loss: ' + str(loss_mean.item()) + '\n')
+                    logger.write('train, epoch: ' + str(epoch) + ', loss: ' + str(loss_mean.item()) + '\n')
+
+                    if (eval_metric is not None):
+                        print('train, epoch: ' + str(epoch) + ', eval_metric: ' + str(eval_metric_mean))
                         logger.write('train, epoch: ' + str(epoch) + ', eval_metric: ' + str(eval_metric_mean) + '\n')
+
                     if(eval2_metric is not None):
                         print('train, epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_mean))
-                        if(logger is not None):
-                            logger.write('train, epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_mean) + '\n')
+                        logger.write('train, epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_mean) + '\n')
 
                     loss_mb = loss_mb/count_mb
                     eval_metric_mb = eval_metric_mb/count_mb
@@ -525,29 +395,25 @@ def main(args):
                         if (len(args.trsub_manifest) > 0):
                             evaluate(args.expnum, trsub_loader, net, Loss, 'trsub', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
-                                     save_wav=args.save_wav, istft=istft)
+                                     args.fix_len_by_cl, save_wav=args.save_wav, istft=istft)
 
                         # Validaion
                         if (len(args.te1_manifest) > 0):
                             evaluate(args.expnum, val_loader, net, Loss, 'val', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
-                                     save_wav=args.save_wav, istft=istft)
+                                     args.fix_len_by_cl, save_wav=args.save_wav, istft=istft)
                         #utils.CPUmemDebug('after eval (val)', mem_debug_file)
                         # Test
                         if (len(args.te1_manifest) > 0):
                             evaluate(args.expnum, test1_loader, net, Loss, 'test', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
-                                     save_wav=args.save_wav, istft=istft)
+                                     args.fix_len_by_cl, save_wav=args.save_wav, istft=istft)
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
                             evaluate(args.expnum, test2_loader, net, Loss, 'test2', args.loss_type, args.eval_type, args.eval2_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
-                                     args.fix_len_by_cl, ec_decomposition=args.ec_decomposition, eps=args.eps,
-                                     save_wav=args.save_wav, istft=istft)
+                                     args.fix_len_by_cl,save_wav=args.save_wav, istft=istft)
 
                         net.train()
                         gc.collect()
@@ -564,101 +430,6 @@ def main(args):
             #scheduler.step()
             torch.cuda.empty_cache()
         logger.close()
-    elif(args.mode == 'test'):
-        assert(0), 'not implemented yet'
-    elif(args.mode == 'RT_analysis'):
-        print('load pretrained model & optimizer')
-        #checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar', map_location='cuda:' + str(args.gpu))
-        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar', map_location=lambda storage, loc: storage)
-
-        print('load saved model')  # order of netdefine-netload-netcuda-optimdefine-optimload-optimcuda is important
-        net.load_state_dict(checkpoint['model'])
-        net.cuda()
-
-        # Optimizer
-        optimizer = optim.Adam(net.parameters(), lr=args.lR0, amsgrad=True)
-
-        print('load saved optimizer and move to gpu')
-        optimizer.load_state_dict(checkpoint['optimizer'])  # order is important
-        for state in optimizer.state.values():
-            for k, v in state.items():
-                if torch.is_tensor(v):
-                    state[k] = v.cuda()
-
-        RT_dir = 'RT_analysis/' + str(args.expnum)
-        if not os.path.exists(RT_dir):
-            os.makedirs(RT_dir)
-
-        nTrain = 7861
-        nValid = 1484
-
-        # ver 1. type = torch.zeros --> cannot store path (=string)
-        #SDR_RT_per_sample_tr = torch.zeros(nTrain, 3) # column: path, SDR, RT
-        #SDR_RT_per_sample_dt = torch.zeros(nValid, 3) # column: path, SDR, RT
-
-        # ver 2. separately save everythings
-        reverb_paths_tr = []
-        reverb_paths_dt = []
-        SDR_RT_per_sample_tr = torch.zeros(nTrain, 2)  # column: SDR, RT
-        SDR_RT_per_sample_dt = torch.zeros(nValid, 2)  # column: SDR, RT
-
-        with torch.no_grad():
-            # tr
-            count = 0
-            print('measuring training data performance')
-            #data_bar = tqdm(train_loader)
-            #for input in data_bar:
-            for _, input in enumerate(tqdm(train_loader)):
-            #for _, input in tqdm(enumerate(train_loader)):
-            #for _, input in enumerate(train_loader):
-                reverb_paths = input[6]
-                RT60s = input[7]
-                loss, eval_metric, eval2_metric = \
-                    forward_common(input, net, Loss, 'tr', args.loss_type, args.eval_type, args.eval2_type,
-                                   stride_product_time, expnum=args.expnum, mode='train', Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl,
-                                   count=count, use_pos=args.ec_decomposition, eps=args.eps)
-                N = eval_metric.size(0)
-
-                for n in range(N):
-                    reverb_paths_tr.append(reverb_paths[n])
-                    SDR_RT_per_sample_tr[count*N + n, 0] = eval_metric[n].item()
-                    SDR_RT_per_sample_tr[count * N + n, 1] = RT60s[n]
-
-                count += 1
-
-                #torch.save(RT_dir + '/performance_tr.py', SDR_RT_per_sample_tr)
-                #np.save(RT_dir + '/reverb_path_tr.npy', reverb_paths_tr)
-
-                sio.savemat(RT_dir + '/SDR_per_RT_tr.mat', {'SDR':SDR_RT_per_sample_tr.numpy()})
-
-            # dt
-            count = 0
-            print('measuring validation data performance')
-            #data_bar = tqdm(val_loader)
-            #for input in data_bar:
-            for _, input in enumerate(tqdm(val_loader)):
-            #for _, input in tqdm(enumerate(val_loader)):
-            #for _, input in enumerate(val_loader):
-                reverb_paths = input[6]
-                RT60s = input[7]
-                loss, eval_metric, eval2_metric = forward_common(input, net, Loss, 'dt', args.loss_type, args.eval_type, args.eval2_type,
-                                                    stride_product_time, expnum=args.expnum, mode='train',
-                                                    Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count,
-                                                    use_pos=args.ec_decomposition, eps=args.eps)
-                N = eval_metric.size(0)
-                for n in range(N):
-                    reverb_paths_dt.append(reverb_paths[n])
-                    SDR_RT_per_sample_dt[count * N + n, 0] = eval_metric[n].item()
-                    SDR_RT_per_sample_dt[count * N + n, 1] = RT60s[n]
-
-                count += 1
-
-            sio.savemat(RT_dir + '/SDR_per_RT_dt.mat', {'SDR': SDR_RT_per_sample_dt.numpy()})
-
-            # save reverberant path
-            sio.savemat(RT_dir + '/reverb_path_tr.mat', {'reverb_path': np.asarray(tuple(reverb_paths_tr))})
-            sio.savemat(RT_dir + '/reverb_path_dt.mat', {'reverb_path': np.asarray(tuple(reverb_paths_dt))})
-
 
     elif(args.mode == 'generate'):
         print('load pretrained model')
@@ -683,7 +454,6 @@ def main(args):
                 if torch.is_tensor(v):
                     state[k] = v.cuda()
 
-
         specs_dir = 'specs/' + str(args.expnum)
         if not os.path.exists(specs_dir):
             os.makedirs(specs_dir)
@@ -700,9 +470,9 @@ def main(args):
                         print('skip generating ' + 'specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat')
                     else:
                         loss, eval_metric, eval2_metric = forward_common(input, net, Loss, 'tr', args.loss_type, args.eval_type, args.eval2_type,
-                                                                            stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
-                                                                            Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count, use_pos=args.ec_decomposition
-                                                                            ,save_activation=args.save_activation, eps=args.eps)
+                                                                         stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
+                                                                            Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count,
+                                                                         save_activation=args.save_activation)
                         reverb_paths = []
                         for n in range(input[0].size(0)):
                             reverb_paths.append(input[3][n])
@@ -731,12 +501,10 @@ def main(args):
                 eval_metric_total = 0
 
                 for _, input in enumerate(tqdm(val_loader)):
-                #for _, input in tqdm(enumerate(val_loader)):
-                #for _, input in enumerate(val_loader):
                     loss, eval_metric, eval2_metric = forward_common(input, net, Loss, 'dt', args.loss_type, args.eval_type, args.eval2_type,
                                                            stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
                                                            Eval=Eval, Eval2=Eval2, fix_len_by_cl=args.fix_len_by_cl, count=count,
-                                                           use_pos=args.ec_decomposition,save_activation=args.save_activation, eps=args.eps)
+                                                           save_activation=args.save_activation)
                     count = count + 1
                     reverb_paths = []
                     for n in range(input[0].size(0)):
@@ -760,8 +528,7 @@ def main(args):
 
 
 def evaluate(expnum, loader, net, Loss, data_type, loss_type, eval_type, eval2_type, stride_product,
-             logger, epoch, Eval, Eval2, fix_len_by_cl, ec_decomposition=False, eps=1e-10,
-             save_wav=False, istft=None):
+             logger, epoch, Eval, Eval2, fix_len_by_cl, save_wav=False, istft=None):
     count = 0
     loss_total = 0
     #loss_w_var_total = 0
@@ -772,19 +539,18 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, eval_type, eval2_t
     # for input in data_bar:
     with torch.no_grad():
         for _, input in enumerate(tqdm(loader)):
-        #for _, input in tqdm(enumerate(loader)):
-        #for _, input in enumerate(loader):
             count += 1
             loss, eval_metric, eval2_metric = forward_common(input, net, Loss, data_type, loss_type, eval_type, eval2_type,
                                                              stride_product, mode='train', expnum=expnum,
-                                               Eval=Eval, Eval2=Eval2, fix_len_by_cl=fix_len_by_cl, use_pos=ec_decomposition, eps=eps,
+                                               Eval=Eval, Eval2=Eval2, fix_len_by_cl=fix_len_by_cl,
                                                              save_wav=save_wav, istft=istft)
             save_wav = False # MAKE save_wav activate only once
 
             loss_mean = torch.mean(loss)
             loss_total += loss_mean.item()
-            eval_metric_mean = torch.mean(eval_metric)
-            eval_metric_total += eval_metric_mean.item()
+            if(eval_metric is not None):
+                eval_metric_mean = torch.mean(eval_metric)
+                eval_metric_total += eval_metric_mean.item()
             if(eval2_metric is not None):
                 eval2_metric_mean = torch.mean(eval2_metric)
                 eval2_metric_total += eval2_metric_mean.item()
