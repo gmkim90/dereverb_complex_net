@@ -7,35 +7,16 @@ from torch.utils import data
 import random
 from scipy.signal import fftconvolve
 import math
+import os
 
 import time
 
 #def check_valid_position(idx_to_pos, pos_str_splited, pos_range):
 def check_valid_position(pos_val, pos_range, interval_cm=1):
     # pos_range : 3x2 (3 = x,y,z, 2 = min/max)
-
-    #if(pos_range == 'all'): # temporary
-#        return True, [0, 0, 0]
-
-    '''
-    pos_idx_x = int(pos_str_splited[0])
-    pos_idx_y = int(pos_str_splited[1])
-    pos_idx_z = int(pos_str_splited[2])
-
-    pos_x = idx_to_pos[0][pos_idx_x]
-    pos_y = idx_to_pos[1][pos_idx_y]
-    pos_z = idx_to_pos[2][pos_idx_z]
-    '''
-
     pos_x = pos_val[0]
     pos_y = pos_val[1]
     pos_z = pos_val[2]
-
-    #print('pv')
-    #print(pos_val)
-    #print('pr')
-    #print(pos_range)
-    #print(' ')
 
     if(pos_x >= pos_range[0] and pos_x <= pos_range[1] and pos_y >= pos_range[2] and pos_y <= pos_range[3]
     and pos_z >= pos_range[4] and pos_z <= pos_range[5]): # pos_range : 1D
@@ -57,9 +38,7 @@ import pdb
 
 # Reference
 # DATA LOADING - LOAD FILE LISTS
-#def load_data_list(folder='./dataset', setname='train'):
-#def load_data_list(manifest_path='', pos_val_list=None, pos_range = None):
-def load_data_list(manifest_path='', use_localization=False, src_range = None, start_ratio=0.0, end_ratio=1.0, interval_cm=1):
+def load_data_list(manifest_path='', use_localization=False, src_range = None, use_ref_IR=False, start_ratio=0.0, end_ratio=1.0, interval_cm=1):
 
     assert(start_ratio >= 0 and start_ratio <= 1)
     assert(end_ratio >= 0 and end_ratio <= 1)
@@ -79,13 +58,8 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, s
         save_RT60 = False
 
     if (src_range == 'all'):  # special case : all position within room is allowed
-        #mic_pos_range = 'all' # ignore posIdx
-        #src_pos_range = 'all' # ignore posIdx
-        #mic_pos_range = [0, 10000, 0, 10000, 0, 10000] # large enough room
         src_pos_range = [0, 10000, 0, 10000, 0, 10000] # large enough room
     else:
-        #mic_pos_range = pos_range[:6] # will not be used anymore
-        #src_pos_range = pos_range[6:]
         src_pos_range = src_range
 
 
@@ -93,6 +67,8 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, s
     dataset['innames'] = []
     dataset['outnames'] = []
     dataset['src_pos'] = []
+    if(use_ref_IR):
+        dataset['ref_IR'] = []
 
     nLine = len(lines)
     startIdx = math.floor(start_ratio*nLine)
@@ -100,11 +76,9 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, s
 
     #for line in lines:
     for i in range(startIdx, endIdx):
-        line = lines[i]
-        line_repr = line.replace('\n', '')
-        line_splited = line_repr.split(',')
+        line = lines[i].strip()
+        line_splited = line.split(',')
         inname = line_splited[0]
-        #posIdx = int(line_splited[2].replace('\n', ''))
         src_pos_str_idx = inname.find('s=')
         RT_str_idx = inname.find('RT')
 
@@ -122,10 +96,18 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, s
         if(valid_input):
             dataset['innames'].append(inname.replace('@', ','))
             dataset['outnames'].append(line_splited[1])
+            if(use_ref_IR):
+                dataset['ref_IR'].append(line_splited[2])
             if(save_RT60):
                 dataset['RT60'].append(line_splited[2])
             if(use_localization):
                 dataset['src_pos'].append(src_pos_val)
+
+        if(random.random() < 0.05): # 5% data will be checked for existstence
+            assert(os.path.exists(dataset['innames'][-1] + '_ch1.npy')), 'reverberant IR (target position) not exists'
+            assert(os.path.exists(dataset['outnames'][-1])), 'clean speech not exists'
+            if(use_ref_IR):
+                assert(os.path.exists(dataset['ref_IR'][-1] + '_ch1.npy')), 'reverberant IR (reference position) not exists'
 
     manifest.close()
     nSample = len(dataset['innames'])
@@ -140,17 +122,13 @@ class SpecDataset(data.Dataset):
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0,
-                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False):
+                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False):
         self.return_path = return_path
 
-        #self.clamp_src = clamp_src
         self.manifest_path = manifest_path
         self.clamp_frame = clamp_frame
         self.ref_mic_direct_td_subtract = ref_mic_direct_td_subtract
         self.use_audio = use_audio
-
-        #print(manifest_path)
-        #print(use_audio)
 
         # ver 1. all of wav data is loaded in advance
         #dataset = load_data_list(manifest_path=manifest_path)
@@ -158,7 +136,7 @@ class SpecDataset(data.Dataset):
 
         # ver2. load wav file at every iteration
         self.dataset = load_data_list(manifest_path=manifest_path, use_localization=use_localization, src_range = src_range,
-                                      start_ratio=start_ratio, end_ratio=end_ratio, interval_cm=interval_cm)
+                                      start_ratio=start_ratio, end_ratio=end_ratio, interval_cm=interval_cm, use_ref_IR=use_ref_IR)
         if('RT60' in self.dataset):
             self.return_RT60 = True
             self.return_path = True
@@ -178,6 +156,7 @@ class SpecDataset(data.Dataset):
         self.nSource = nSource # how many sources to use
 
         self.load_IR = load_IR
+        self.use_ref_IR = use_ref_IR
 
         self.stft = stft
 
@@ -213,15 +192,11 @@ class SpecDataset(data.Dataset):
 
         if(self.nSource == 1):
             outputData, sr = sf.read(self.dataset['outnames'][idx])
-            # if (self.clamp_src > 0):
-            #     outputData = outputData[self.clamp_src:-self.clamp_src]  # remove front/end samples (i.e., remove front/end silence)
         elif(self.nSource > 1):
             outputData_list = []
             for n in range(self.nSource):
                 idx_n = (idx + n)%self.nData
                 outputData_n, sr = sf.read(self.dataset['outnames'][idx_n])
-                # if(self.clamp_src > 0):
-                #     outputData_n = outputData_n[self.clamp_src:-self.clamp_src] # remove front/end samples (i.e., remove front/end silence)
                 outputData_list.append(outputData_n)
                 del outputData_n
             outputData = np.hstack(outputData_list)
@@ -246,6 +221,21 @@ class SpecDataset(data.Dataset):
                 inputData.append(inputData_single)
                 del inputData_single
 
+        if(self.use_ref_IR):
+            refmic_data = []
+            for i in range(self.nMic):
+                load_path = self.dataset['ref_IR'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
+                IR = np.squeeze(np.load(load_path))
+                refmic_single = fftconvolve(outputData, IR)
+                if(self.ref_mic_direct_td_subtract):
+                    if(i == 0):
+                        tau1 = IR.argmax()
+                    refmic_single = refmic_single[tau1:]
+                    refmic_data.append(refmic_single)
+                del refmic_single, IR
+            refmic = torch.FloatTensor(np.stack(refmic_data)).squeeze()
+            del refmic_data
+
         mixed = torch.FloatTensor(np.stack(inputData)).squeeze()
         clean = torch.FloatTensor(outputData)
         del inputData, outputData
@@ -253,19 +243,28 @@ class SpecDataset(data.Dataset):
         T = clean.nelement()
         if(self.fix_len_by_cl == 'input'):
             mixed = mixed[:, :T]
+            if(self.use_ref_IR):
+                refmic = refmic[:, :T]
 
         mixedSTFT = self.stft(mixed.cuda())
         cleanSTFT = self.stft(clean.cuda())
+        if(self.use_ref_IR):
+            refmicSTFT = self.stft(refmic.cuda())
 
         if(self.clamp_frame > 0):
             mixedSTFT = mixedSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
             cleanSTFT = cleanSTFT[:, self.clamp_frame:-self.clamp_frame, :]  # MxFxTx2
+            if(self.use_ref_IR):
+                refmicSTFT = refmicSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
 
         if(self.use_audio):
             return_list = [mixedSTFT, cleanSTFT, mixed, clean]
         else:
             return_list = [mixedSTFT, cleanSTFT] # do not use time domain signal anymore
             del mixed, clean
+
+        if(self.use_ref_IR):
+            return_list.append(refmicSTFT)
 
         if(self.return_path):
             return_list.append(self.dataset['innames'][idx])
@@ -277,22 +276,6 @@ class SpecDataset(data.Dataset):
             return_list.append(self.dataset['src_pos'][idx])
 
         return return_list
-
-        '''
-        if(not self.return_path): # train.py
-            if(not self.return_RT60):
-                return mixedSTFT, cleanSTFT, mixed, clean
-            else:
-                RT60 = self.dataset['RT60'][idx]
-                return mixedSTFT, cleanSTFT, mixed, clean, RT60
-        else: # test.py
-            if(not self.return_RT60):
-                return mixedSTFT, cleanSTFT, self.dataset['innames'][idx], mixed, clean
-            else:
-                RT60 = self.dataset['RT60'][idx]
-                return mixedSTFT, cleanSTFT, self.dataset['innames'][idx], mixed, clean, RT60
-        '''
-
 
     def __len__(self):
         return len(self.file_names)
@@ -360,6 +343,8 @@ class SpecDataset(data.Dataset):
         if(self.use_audio):
             mixeds_time = input_zips.__next__() # do not use time domain signal anymore
             cleans_time = input_zips.__next__() # do not use time domain signal anymore
+        if(self.use_ref_IR):
+            refmic_STFT = input_zips.__next__()
         if(self.return_path):
             reverb_paths = input_zips.__next__()
         if(self.return_RT60):
@@ -369,25 +354,21 @@ class SpecDataset(data.Dataset):
             src_pos = input_zips.__next__()        
         del input_zips
 
-        # ver3. method without __next__
-        #mixeds_STFT, cleans_STFT = zip(*inputs)
-
-        #seq_lens_STFT = torch.IntTensor([i.shape[-2] for i in mixeds_STFT])
-        #seq_lens_time = torch.IntTensor([i.shape[-1] for i in mixeds_time])
-
         seq_lens_STFT = torch.IntTensor([i.shape[-2] for i in cleans_STFT]) # measured by clean
         if(self.use_audio):
             seq_lens_time = torch.IntTensor([i.shape[-1] for i in cleans_time]) # measured by clean
 
         x_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(mixeds_STFT))
         y_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(cleans_STFT)).squeeze() # may contain garbage dimension
+        del cleans_STFT, mixeds_STFT
+
+        if(self.use_ref_IR):
+            x_ref_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(refmic_STFT))
+            del refmic_STFT
 
         if(y_STFT.size(0) > 100): # possibly, sample dimension is missing (cuz minibatch size = 1)
-            #x_STFT = x_STFT.unsqueeze(0) # x is already unsqueezed in the front part
             y_STFT = y_STFT.unsqueeze(0)
 
-        del cleans_STFT, mixeds_STFT
-        #pdb.set_trace()
         if(self.use_audio):
             x_time = torch.FloatTensor(self.zero_pad_concat_time(mixeds_time))
             y_time = torch.FloatTensor(self.zero_pad_concat_time(cleans_time))
@@ -395,6 +376,8 @@ class SpecDataset(data.Dataset):
         else:
             batch = [x_STFT, y_STFT, seq_lens_STFT]
         #pdb.set_trace()
+        if(self.use_ref_IR):
+            batch.append(x_ref_STFT)
         if(self.return_path):
             batch.append(reverb_paths)
 
@@ -404,18 +387,4 @@ class SpecDataset(data.Dataset):
         if(self.return_src_pos):
             batch.append(src_pos)
 
-        # ver 1
-        '''
-        if (not self.return_path):
-            if(not self.return_RT60):
-                batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time]
-            else:
-                batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time, RT60s]
-        else:
-            if(not self.return_RT60):
-                batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time, reverb_paths]
-            else:
-                batch = [x_STFT, y_STFT, seq_lens_STFT, x_time, y_time, seq_lens_time, reverb_paths, RT60s]
-        '''
-        #pdb.set_trace()
         return batch

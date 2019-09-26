@@ -65,6 +65,42 @@ def var_time(W):
 
     return var
 
+def reference_position_demixing(refmic_real, refmic_imag, mask_real, mask_imag, Tlist):
+    # size: NxMxFxT
+    weighted_sum_real = torch.sum(mask_real*refmic_real-mask_imag*refmic_imag, dim=1) # NxFxT
+    weighted_sum_imag = torch.sum(mask_real*refmic_imag+mask_imag*refmic_real, dim=1) # NxFxT
+
+    weighted_sum_power = torch.sum(torch.sum(weighted_sum_real*weighted_sum_real + weighted_sum_imag*weighted_sum_imag, dim=2), dim=1) # Nx1
+
+    Tlist_float = Tlist.float().cuda()
+    weighted_sum_power_frame_normalized_negative = -weighted_sum_power/Tlist_float # x(-1) for -loss convention
+
+    return weighted_sum_power_frame_normalized_negative
+
+def distortion_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):
+    clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
+    output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)
+
+    distortion_mag =  output_mag-clean_mag
+    distortion_power = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    Tlist_float = Tlist.float().cuda()
+
+    distortion_power_frame_normalized_negative = -distortion_power/Tlist_float # x(-1) for -loss convention
+
+    return distortion_power_frame_normalized_negative
+
+def distortion_em_realimag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):
+    distortion_real = output_real-clean_real
+    distortion_imag = output_imag-clean_imag
+    distortion_power = torch.sum(torch.sum(distortion_real*distortion_real + distortion_imag*distortion_imag, dim=2), dim=1)
+
+    Tlist_float = Tlist.float().cuda()
+
+    distortion_power_frame_normalized_negative = -distortion_power/Tlist_float # x(-1) for -loss convention
+
+    return distortion_power_frame_normalized_negative
+
 def SDR_em_realimag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):  # scale invariant SDR loss function
     # Tlist as dummy variable
 
