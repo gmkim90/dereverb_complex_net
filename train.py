@@ -301,8 +301,8 @@ def main(args):
                         sys.exit()
                     loss_mb += loss_mean.item()
                     if(loss2 is not None):
-                        loss2_mean = torch.mean(loss2).item()
-                        loss2_mb += float(loss2_mean)
+                        loss2_mean = torch.mean(loss2)
+                        loss2_mb += float(loss2_mean.item())
                     if(eval_metric is not None):
                         eval_metric_mean = torch.mean(eval_metric).item()
                         eval_metric_mb += float(eval_metric_mean)
@@ -326,10 +326,10 @@ def main(args):
                     logger.write('train, epoch: ' + str(epoch) + ', loss: ' + str(loss_mean.item()) + '\n')
 
                     if(loss2 is not None):
-                        loss2_mean = torch.mean(loss2).item()
-                        loss2_mb += float(loss2_mean)
-                        print('train, epoch: ' + str(epoch) + ', loss2: ' + str(loss2_mean))
-                        logger.write('train, epoch: ' + str(epoch) + ', loss2: ' + str(loss2_mean) + '\n')
+                        loss2_mean = torch.mean(loss2)
+                        loss2_mb += float(loss2_mean.item())
+                        print('train, epoch: ' + str(epoch) + ', loss2: ' + str(loss2_mean.item()))
+                        logger.write('train, epoch: ' + str(epoch) + ', loss2: ' + str(loss2_mean.item()) + '\n')
                     if(eval_metric is not None):
                         eval_metric_mean = torch.mean(eval_metric).item()
                         eval_metric_mb += float(eval_metric_mean)
