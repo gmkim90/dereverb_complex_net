@@ -30,6 +30,7 @@ def main(args):
     #mem_debug_file = open('mem_debug_file_' + str(args.expnum) + '.txt', 'w')
     #tracemalloc.start()
     assert (args.expnum >= 1)
+    assert(not (args.use_neighbor_IR and args.use_ref_IR)), 'to use ref & neighbor IR simultaneously, need dynamic data index function'
 
     if (args.mic_sampling == 'ref_manual'):
         args.subset1 = args.subset1.split(',')  # string to list
@@ -118,7 +119,8 @@ def main(args):
                                     nSource=args.nSource,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     clamp_frame=args.clamp_frame, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR)
+                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
+                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
@@ -293,7 +295,7 @@ def main(args):
                         forward_common(input, net, Loss, 'train', args.loss_type,stride_product_time, mode='train',
                                        Eval=Eval, Eval2=Eval2,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
-                                        Loss2 = Loss2, use_ref_IR=args.use_ref_IR)
+                                        Loss2 = Loss2, use_ref_IR=args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -315,7 +317,7 @@ def main(args):
                                        stride_product_time, mode='train', expnum=args.expnum,
                                        Eval=Eval, Eval2=Eval2,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
-                                        Loss2 = Loss2, use_ref_IR = args.use_ref_IR)
+                                        Loss2 = Loss2, use_ref_IR = args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -368,7 +370,7 @@ def main(args):
 
                 optimizer.zero_grad()
                 if(loss2 is not None):
-                    loss_mean += loss2_mean
+                    loss_mean += loss2_mean*args.w_loss2
                 loss_mean.backward()
                 optimizer.step()
                 #utils.CPUmemDebug('after backward & step', mem_debug_file)
@@ -445,6 +447,11 @@ def main(args):
         if not os.path.exists(specs_dir):
             os.makedirs(specs_dir)
 
+        if(args.use_ref_IR):
+            target_IR_path_idx = 4
+        else:
+            arget_IR_path_idx = 3
+
         with torch.no_grad():
             # tr
             count = 0
@@ -463,7 +470,7 @@ def main(args):
                                                                          save_activation=args.save_activation, use_ref_IR=args.use_ref_IR)
                         reverb_paths = []
                         for n in range(input[0].size(0)):
-                            reverb_paths.append(input[3][n])
+                            reverb_paths.append(input[target_IR_path_idx][n])
 
                         if (eval2_metric is None):
                             sio.savemat('specs/' + str(args.expnum) + '/SDR_tr_' + str(count) + '.mat',
@@ -478,7 +485,7 @@ def main(args):
                         eval_metric_total += eval_metric.mean().item()
                         if(count == args.nGenerate):
                             break
-                    eval_metric_total = eval_metric_total/count
+                eval_metric_total = eval_metric_total/count
                 print('tr SDR = ' + str(eval_metric_total))
             else:
                 print('NO TRAINING MANIFEST')
@@ -491,9 +498,9 @@ def main(args):
                 for _, input in enumerate(tqdm(val_loader)):
                     loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, 'dt', args.loss_type,
                                                            stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
-                                                           Loss2=None, Eval=Eval, Eval2=Eval2,
+                                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2,
                                                             fix_len_by_cl=args.fix_len_by_cl, count=count,
-                                                           save_activation=args.save_activation) # do not use Loss2 & ref_IR in valid
+                                                           save_activation=args.save_activation, use_ref_IR=args.use_ref_IR) # do not use Loss2 & ref_IR in valid
                     count = count + 1
                     reverb_paths = []
                     for n in range(input[0].size(0)):

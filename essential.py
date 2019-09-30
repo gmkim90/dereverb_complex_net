@@ -15,27 +15,58 @@ def normalize(y):
     y = y/max(abs(y))
     return y
 
+def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
+    # input
+    # loss: Nx1
+    # loss_neighbor: sum_n(nNeighbor)x1
+    # nNeighbor
+
+    # output
+    # neighbor_sensitivity:  (loss - neighbor_average_loss)^2 --> dim = Nx1
+
+    # IMPORTANT NOTE: to exclude neighborhood sample from backward path, use detach() on loss_neighbor
+    loss_neighbor = loss_neighbor.detach()
+
+    neighbor_sensitivity = 0
+    return neighbor_sensitivity
+
 def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1, fixed_src=False,
                    Loss2 = None, Eval=None, Eval2=None, fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
-                   use_ref_IR=False):
+                   use_ref_IR=False, use_neighbor_IR=False):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
-    if(use_ref_IR):
-        refmicSTFT = input[3].cuda()
-        refmic_real, refmic_imag = refmicSTFT[..., 0], refmicSTFT[..., 1]
     if(mixedSTFT.dim() == 4): # for singleCH experiment
         mixedSTFT = mixedSTFT.unsqueeze(1)
     bsz, nCH, F, Tf, _ = mixedSTFT.size()
+
+    if(use_ref_IR):
+        refmicSTFT = input[3].cuda()
+    elif(use_neighbor_IR):
+        nbmicSTFT = input[3].cuda()
+        nbmicSTFT = nbmicSTFT.view(-1, nCH, F, nbmicSTFT.size(3), 2)
+
 
     if(stride_product > 0 and not Tf % stride_product == 1):
         nPad_time = stride_product*math.ceil(Tf/stride_product) - Tf + 1
         mixedSTFT = Func.pad(mixedSTFT, (0, 0, 0, nPad_time, 0, 0))  # (Fs,Fe,Ts,Te, real, imag)
         cleanSTFT = Func.pad(cleanSTFT, (0, 0, 0, nPad_time, 0, 0))
+        if(use_ref_IR):
+            refmicSTFT = Func.pad(refmicSTFT, (0, 0, 0, nPad_time, 0, 0))
+        if(use_neighbor_IR):
+            nbmicSTFT = Func.pad(nbmicSTFT, (0, 0, 0, nPad_time, 0, 0))
+
+    if(use_ref_IR):
+        refmic_real, refmic_imag = refmicSTFT[..., 0], refmicSTFT[..., 1]
+
+    if(use_neighbor_IR):
+        nbmic_real, nbmic_imag = nbmicSTFT[..., 0], nbmicSTFT[..., 1]
 
     clean_real, clean_imag = cleanSTFT[..., 0], cleanSTFT[..., 1]
     mixed_real, mixed_imag = mixedSTFT[..., 0], mixedSTFT[..., 1]
 
     out_real, out_imag, mask_real, mask_imag = net(mixed_real, mixed_imag)
+    if(use_neighbor_IR):
+        out_nb_real, out_nb_imag, mask_nb_real, mask_nb_imag = net(nbmic_real, nbmic_imag)
 
     Tmax_cl = clean_real.size(-1)
     if(fix_len_by_cl == 'eval'): # note that mic length = output length in this mode
@@ -52,6 +83,9 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         if(use_ref_IR):
             refmic_real = refmic_real[:, :, :, :minT]
             refmic_imag = refmic_imag[:, :, :, :minT]
+        if(use_neighbor_IR):
+            out_nb_real = out_nb_real[:, :, :minT]
+            out_nb_imag = out_nb_imag[:, :, :minT]
 
     for i, l in enumerate(len_STFT_cl):  # zero padding to output audio
         out_real[i, :, min(l, minT):] = 0
@@ -68,9 +102,16 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
             out_audio[i, l:] = 0
         loss = -Loss(clean_time, out_audio)
 
+    if(use_neighbor_IR):
+        # TODO: define clean_nb_real, clean_nb_imag, len_STFT_nb_cl
+        loss_neighbor = -Loss(clean_nb_real, clean_nb_imag, out_nb_real, out_nb_imag, len_STFT_nb_cl)
+
+        # TODO: save nNeighbor in se_dataset
+        # TODO: make neighbor_sensitivity function
+        # TODO: return loss_sensitivity loss & include at the training
+        loss_sensitivity = neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor)
+
     if(Loss2 is not None):
-        #if(not refmic_real.size(-1) == mask_real.size(-1)):
-            #pdb.set_trace()
         loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
     else:
         loss2 = None
@@ -90,14 +131,52 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
     if(mode == 'generate' and save_activation): # generate spectroram
         specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
 
-        if(not fixed_src or count == 0):
+        if(use_ref_IR): # calculate ground-truth W
+            # given
+            # clean: NxFxT
+            # targetIR mic(=mixed): NxMxFxT
+            # referIR mic(=refmic): NxMxFxT
+
+            mixed_real = mixed_real[:, :, :, :minT]
+            mixed_imag = mixed_imag[:, :, :, :minT]
+
+            Xt1_real = mixed_real[:, 0, :, :]
+            Xt1_imag = mixed_imag[:, 0, :, :]
+            Xt2_real = mixed_real[:, 1, :, :]
+            Xt2_imag = mixed_imag[:, 1, :, :]
+
+            Xr1_real = refmic_real[:, 0, :, :]
+            Xr1_imag = refmic_imag[:, 0, :, :]
+            Xr2_real = refmic_real[:, 1, :, :]
+            Xr2_imag = refmic_imag[:, 1, :, :]
+
+            # determinant
+            det_real = (Xt1_real*Xr2_real-Xt1_imag*Xr2_imag) - (Xt2_real*Xr1_real-Xt2_imag*Xr1_imag) # NxFxT
+            det_imag = (Xt1_real*Xr2_imag+Xt1_imag*Xr2_real) - (Xt2_real*Xr1_imag+Xt2_imag*Xr1_real) # NxFxT
+
+            det_mag = torch.sqrt(det_real*det_real + det_imag*det_imag)
+
+            # clean
+            clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag)
+
+            # refmic
+            Xr1_mag = torch.sqrt(Xr1_real*Xr1_real + Xr1_imag*Xr1_imag)
+            Xr2_mag = torch.sqrt(Xr2_real*Xr2_real + Xr2_imag*Xr2_imag)
+
+            # gtW
+            Wgt1 = clean_mag/(det_mag+1e-12)*Xr2_mag
+            Wgt2 = clean_mag/(det_mag+1e-12)*Xr1_mag
+
+        if(use_ref_IR):
             sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
                                     'out_real': out_real.data.cpu().numpy(), 'out_imag':out_imag.data.cpu().numpy(),
                                     'clean_real': clean_real.data.cpu().numpy(), 'clean_imag':clean_imag.data.cpu().numpy(),
-                                    'mask_real':mask_real.data.cpu().numpy(), 'mask_imag':mask_imag.data.cpu().numpy()})
+                                    'mask_real':mask_real.data.cpu().numpy(), 'mask_imag':mask_imag.data.cpu().numpy(),
+                                     'Wgt1':Wgt1.data.cpu().numpy(), 'Wgt2':Wgt2.data.cpu().numpy()})
         else:
             sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
                                     'out_real': out_real.data.cpu().numpy(), 'out_imag':out_imag.data.cpu().numpy(),
+                                    'clean_real': clean_real.data.cpu().numpy(), 'clean_imag':clean_imag.data.cpu().numpy(),
                                     'mask_real':mask_real.data.cpu().numpy(), 'mask_imag':mask_imag.data.cpu().numpy()})
 
     if(save_wav and not data_type == 'train'):

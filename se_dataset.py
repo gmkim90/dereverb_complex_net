@@ -38,7 +38,8 @@ import pdb
 
 # Reference
 # DATA LOADING - LOAD FILE LISTS
-def load_data_list(manifest_path='', use_localization=False, src_range = None, use_ref_IR=False, start_ratio=0.0, end_ratio=1.0, interval_cm=1):
+def load_data_list(manifest_path='', use_localization=False, src_range = None, use_ref_IR=False, use_neighbor_IR=False,
+                   start_ratio=0.0, end_ratio=1.0, interval_cm=1):
 
     assert(start_ratio >= 0 and start_ratio <= 1)
     assert(end_ratio >= 0 and end_ratio <= 1)
@@ -69,6 +70,8 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
     dataset['src_pos'] = []
     if(use_ref_IR):
         dataset['ref_IR'] = []
+    if(use_neighbor_IR):
+        dataset['neighbor_IR'] = []
 
     nLine = len(lines)
     startIdx = math.floor(start_ratio*nLine)
@@ -82,6 +85,7 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
         src_pos_str_idx = inname.find('s=')
         RT_str_idx = inname.find('RT')
 
+        #pdb.set_trace()
         if(src_pos_str_idx > 0):
             src_pos_str = inname[src_pos_str_idx+2:RT_str_idx-1]
             src_pos_vals = src_pos_str.split('_')
@@ -98,14 +102,23 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
             dataset['outnames'].append(line_splited[1])
             if(use_ref_IR):
                 dataset['ref_IR'].append(line_splited[2])
+            if(use_neighbor_IR):
+                neighbor_IR_list = []
+                for i in range(2, len(line_splited)):
+                    neighbor_IR_list.append(line_splited[i].strip())
+                dataset['neighbor_IR'].append(neighbor_IR_list)
             if(save_RT60):
                 dataset['RT60'].append(line_splited[2])
             if(use_localization):
                 dataset['src_pos'].append(src_pos_val)
 
         if(random.random() < 0.05): # 5% data will be checked for existstence
-            assert(os.path.exists(dataset['innames'][-1] + '_ch1.npy')), 'reverberant IR (target position) not exists'
-            assert(os.path.exists(dataset['outnames'][-1])), 'clean speech not exists'
+            IR_path = dataset['innames'][-1] + '_ch1.npy'
+            src_path = dataset['outnames'][-1]
+            if(not os.path.exists(IR_path)):
+                assert(0), IR_path + ' (target position) not exists'
+            if(not os.path.exists(src_path)):
+                assert(0), src_path + ' clean speech not exists'
             if(use_ref_IR):
                 assert(os.path.exists(dataset['ref_IR'][-1] + '_ch1.npy')), 'reverberant IR (reference position) not exists'
 
@@ -122,7 +135,7 @@ class SpecDataset(data.Dataset):
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0,
-                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False):
+                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False):
         self.return_path = return_path
 
         self.manifest_path = manifest_path
@@ -136,7 +149,8 @@ class SpecDataset(data.Dataset):
 
         # ver2. load wav file at every iteration
         self.dataset = load_data_list(manifest_path=manifest_path, use_localization=use_localization, src_range = src_range,
-                                      start_ratio=start_ratio, end_ratio=end_ratio, interval_cm=interval_cm, use_ref_IR=use_ref_IR)
+                                      start_ratio=start_ratio, end_ratio=end_ratio, interval_cm=interval_cm,
+                                      use_ref_IR=use_ref_IR, use_neighbor_IR=use_neighbor_IR)
         if('RT60' in self.dataset):
             self.return_RT60 = True
             self.return_path = True
@@ -157,6 +171,7 @@ class SpecDataset(data.Dataset):
 
         self.load_IR = load_IR
         self.use_ref_IR = use_ref_IR
+        self.use_neighbor_IR = use_neighbor_IR
 
         self.stft = stft
 
@@ -202,24 +217,34 @@ class SpecDataset(data.Dataset):
             outputData = np.hstack(outputData_list)
             del outputData_list
 
+        # load IR
+        for i in range(self.nMic):
+            load_path = self.dataset['innames'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
+            IR = np.squeeze(np.load(load_path))
+            inputData_single = fftconvolve(outputData, IR)
+            if(i == 0):
+                tau1 = IR.argmax()
+            inputData_single = inputData_single[tau1:]
+            inputData.append(inputData_single)
+            del inputData_single, IR
 
-        if(self.load_IR):
-            for i in range(self.nMic):
-                load_path = self.dataset['innames'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
-                IR = np.squeeze(np.load(load_path))
-                inputData_single = fftconvolve(outputData, IR)
-                if(self.ref_mic_direct_td_subtract):
+        if(self.use_neighbor_IR):
+            load_path_list = self.dataset['neighbor_IR'][idx]
+            nNeighbor = len(load_path_list)
+            neighbormic_data_all = []
+            for n in range(nNeighbor):
+                for m in range(self.nMic):
+                    load_path = load_path_list[n] + '_ch' + str(selected_mics[i]) + '.npy'
+                    IR = np.squeeze(np.load(load_path))
+                    neighbormic_single = ffrconvolve(outputData, IR)
                     if(i == 0):
                         tau1 = IR.argmax()
-                    inputData_single = inputData_single[tau1:]
-                inputData.append(inputData_single)
-                del inputData_single, IR
-        else:
-            for i in range(self.nMic):
-                load_path = self.dataset['innames'][idx] + '_ch' + str(selected_mics[i]) + '.wav'
-                inputData_single, sr = sf.read(load_path)
-                inputData.append(inputData_single)
-                del inputData_single
+                    neighbormic_single = neighbormic_single[tau1:]
+                    neighbormic_data_all.append(neighbormic_single)
+                    del neighbormic_single, IR
+
+            neighbormic_all = torch.FloatTensor(np.stack(neighbormic_data_all)).squeeze()
+            del neighbormic_data_all
 
         if(self.use_ref_IR):
             refmic_data = []
@@ -227,11 +252,10 @@ class SpecDataset(data.Dataset):
                 load_path = self.dataset['ref_IR'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
                 IR = np.squeeze(np.load(load_path))
                 refmic_single = fftconvolve(outputData, IR)
-                if(self.ref_mic_direct_td_subtract):
-                    if(i == 0):
-                        tau1 = IR.argmax()
-                    refmic_single = refmic_single[tau1:]
-                    refmic_data.append(refmic_single)
+                if(i == 0):
+                    tau1 = IR.argmax()
+                refmic_single = refmic_single[tau1:]
+                refmic_data.append(refmic_single)
                 del refmic_single, IR
             refmic = torch.FloatTensor(np.stack(refmic_data)).squeeze()
             del refmic_data
@@ -250,12 +274,17 @@ class SpecDataset(data.Dataset):
         cleanSTFT = self.stft(clean.cuda())
         if(self.use_ref_IR):
             refmicSTFT = self.stft(refmic.cuda())
+        if(self.use_neighbor_IR):
+            nbmicSTFT = self.stft(neighbormic_all.cuda()) # nNeighbor * nMic samples
+
 
         if(self.clamp_frame > 0):
             mixedSTFT = mixedSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
             cleanSTFT = cleanSTFT[:, self.clamp_frame:-self.clamp_frame, :]  # MxFxTx2
             if(self.use_ref_IR):
                 refmicSTFT = refmicSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
+            if(self.use_neighbor_IR):
+                nbmicSTFT = nbmicSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # (M*nNeighbor)xFxTx2
 
         if(self.use_audio):
             return_list = [mixedSTFT, cleanSTFT, mixed, clean]
@@ -265,6 +294,9 @@ class SpecDataset(data.Dataset):
 
         if(self.use_ref_IR):
             return_list.append(refmicSTFT)
+
+        if(self.use_neighbor_IR):
+            return_list.append(nbmicSTFT)
 
         if(self.return_path):
             return_list.append(self.dataset['innames'][idx])

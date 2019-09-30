@@ -82,7 +82,7 @@ parser.add_argument('--save_wav', default=False, type=str2bool)
 parser.add_argument('--inverse_type', default='no', type=str, help = 'left | powre_reciprocal_conjugate | no (default)')
 
 parser.add_argument('--mode', default='train', type=str, help = 'train | test | generate')
-parser.add_argument('--nGenerate', default=1, type=int, help = 'how many minibatch to generate for each tr/dt/et')
+parser.add_argument('--nGenerate', default=100000000, type=int, help = 'how many minibatch to generate for each tr/dt/et')
 parser.add_argument('--use_ISTFT', default=False, type=str2bool)
 parser.add_argument('--return_path', default=False, type=str2bool)
 
@@ -106,6 +106,8 @@ parser.add_argument('--loss_type', default='sInvSDR_mag', type=str, help='time|s
 parser.add_argument('--loss2_type', default='', type=str, help='referece_position_demixing')
 
 parser.add_argument('--use_ref_IR', default=False, type=str2bool, help='usage of IR from reference position')
+parser.add_argument('--use_neighbor_IR', default=False, type=str2bool, help='usage of neighborhood IRs for SDR sensitivity')
+parser.add_argument('--w_loss2', default=1, type=float, help='task weight of auxiliary loss (e.g., refIR demixing)')
 
 parser.add_argument('--batch_size', default=8, type=int, help='train batch size')
 parser.add_argument('--expnum', default=-1, type=int)
