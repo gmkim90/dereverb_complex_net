@@ -112,7 +112,7 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
             if(use_localization):
                 dataset['src_pos'].append(src_pos_val)
 
-        if(random.random() < 0.05): # 5% data will be checked for existstence
+        if(len(dataset['innames']) > 0 and random.random() < 0.05): # 5% data will be checked for existstence
             IR_path = dataset['innames'][-1] + '_ch1.npy'
             src_path = dataset['outnames'][-1]
             if(not os.path.exists(IR_path)):
@@ -123,8 +123,15 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
                 assert(os.path.exists(dataset['ref_IR'][-1] + '_ch1.npy')), 'reverberant IR (reference position) not exists'
 
     manifest.close()
+
     nSample = len(dataset['innames'])
     print('#sample = ' + str(nSample))
+
+    #if(nSample > 1000):
+#        IR_list = open('IR_list.txt','w')
+#        for o in range(nSample):
+#            IR_list.write(dataset['innames'][o] + '\n')
+#        IR_list.close()
 
     return dataset
 
