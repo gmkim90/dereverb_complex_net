@@ -119,7 +119,9 @@ parser.add_argument('--eps', default=1e-20, type=float)
 parser.add_argument('--start_epoch', default=0, type=int, help = 'if > 0, resume training from end of the train')
 
 #parser.add_argument('--clamp_src', default=0, type=int, help = 'if > 0, clamp clean source of front/end. (i.e., clamp front/end silence)')
-parser.add_argument('--clamp_frame', default=0, type=int, help = 'if > 0, clamp S & X of front/end as frame unit(i.e., clamp front/end silence)')
+#parser.add_argument('--clamp_frame', default=0, type=int, help = 'if > 0, clamp S & X of front/end as frame unit(i.e., clamp front/end silence)')
+parser.add_argument('--do_1st_frame_clamp', default=False, type=str2bool, help = 'append zero to source & clamp 1st frame on src & mic')
+
 
 parser.add_argument('--ref_mic_direct_td_subtract', default=True, type=str2bool)
 

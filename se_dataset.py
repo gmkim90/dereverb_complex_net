@@ -134,7 +134,7 @@ class SpecDataset(data.Dataset):
     """
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
-                 load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0,
+                 load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0, hop_length=0,
                  clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False):
         self.return_path = return_path
 
@@ -142,6 +142,8 @@ class SpecDataset(data.Dataset):
         self.clamp_frame = clamp_frame
         self.ref_mic_direct_td_subtract = ref_mic_direct_td_subtract
         self.use_audio = use_audio
+
+        self.hop_length = hop_length
 
         # ver 1. all of wav data is loaded in advance
         #dataset = load_data_list(manifest_path=manifest_path)
@@ -217,6 +219,9 @@ class SpecDataset(data.Dataset):
             outputData = np.hstack(outputData_list)
             del outputData_list
 
+        if(self.clamp_frame):
+            outputData = np.pad(outputData, (self.hop_length, 0), 'constant')
+
         # load IR
         for i in range(self.nMic):
             load_path = self.dataset['innames'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
@@ -278,13 +283,14 @@ class SpecDataset(data.Dataset):
             nbmicSTFT = self.stft(neighbormic_all.cuda()) # nNeighbor * nMic samples
 
 
-        if(self.clamp_frame > 0):
-            mixedSTFT = mixedSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
-            cleanSTFT = cleanSTFT[:, self.clamp_frame:-self.clamp_frame, :]  # MxFxTx2
+        #if(self.clamp_frame > 0):
+        if(self.clamp_frame):
+            mixedSTFT = mixedSTFT[:, :, 1:, :] # MxFxTx2
+            cleanSTFT = cleanSTFT[:, 1:, :]  # FxTx2
             if(self.use_ref_IR):
-                refmicSTFT = refmicSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # MxFxTx2
+                refmicSTFT = refmicSTFT[:, :, 1:, :] # MxFxTx2
             if(self.use_neighbor_IR):
-                nbmicSTFT = nbmicSTFT[:, :, self.clamp_frame:-self.clamp_frame, :] # (M*nNeighbor)xFxTx2
+                nbmicSTFT = nbmicSTFT[:, :, 1:, :] # (M*nNeighbor)xFxTx2
 
         if(self.use_audio):
             return_list = [mixedSTFT, cleanSTFT, mixed, clean]
