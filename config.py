@@ -58,7 +58,7 @@ parser.add_argument('--td_type', default='', type=str, help='gt|est|blank')
 parser.add_argument('--measure_reverb_loss', default=False, type=str2bool)
 parser.add_argument('--ds_rate', default=8, type=int, help = 'integer with power of 2')
 parser.add_argument('--vad_preemp', default=False, type=str2bool, help = 'apply vad+preemp to mic, vad to clean')
-parser.add_argument('--fix_len_by_cl', default='eval', type=str, help = 'input | eval')
+parser.add_argument('--fix_len_by_cl', default='input', type=str, help = 'input | eval')
 parser.add_argument('--fband_SDR', default=False, type=str2bool)
 parser.add_argument('--nFinterval', default=9, type=int) # 10 ->9
 parser.add_argument('--use_depthwise', default=False, type=str2bool)

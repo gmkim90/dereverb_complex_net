@@ -11,6 +11,38 @@ from models.loss import var_time
 
 import pdb
 
+def get_gtW(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
+    assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
+
+    Xt1_real = Xt_real[:, 0, :, :]
+    Xt1_imag = Xt_imag[:, 0, :, :]
+    Xt2_real = Xt_real[:, 1, :, :]
+    Xt2_imag = Xt_imag[:, 1, :, :]
+
+    Xr1_real = Xr_real[:, 0, :, :]
+    Xr1_imag = Xr_imag[:, 0, :, :]
+    Xr2_real = Xr_real[:, 1, :, :]
+    Xr2_imag = Xr_imag[:, 1, :, :]
+
+    # determinant
+    det_real = (Xt1_real * Xr2_real - Xt1_imag * Xr2_imag) - (Xt2_real * Xr1_real - Xt2_imag * Xr1_imag)  # NxFxT
+    det_imag = (Xt1_real * Xr2_imag + Xt1_imag * Xr2_real) - (Xt2_real * Xr1_imag + Xt2_imag * Xr1_real)  # NxFxT
+
+    det_power = det_real * det_real + det_imag * det_imag
+
+    # S/det
+    S_det_real = (S_real * det_real + S_imag * det_imag) / (det_power+eps)
+    S_det_imag = (S_imag * det_real - S_real * det_imag) / (det_power+eps)
+
+    # multiply Xref (=Wgt)
+    Wgt1_real = S_det_real * Xr2_real - S_det_imag * Xr2_imag
+    Wgt1_imag = S_det_real * Xr2_imag + S_det_imag * Xr2_real
+    Wgt2_real = S_det_real * (-Xr1_real) - S_det_imag * (-Xr1_imag)
+    Wgt2_imag = S_det_real * (-Xr1_imag) + S_det_imag * (-Xr1_real)
+
+    #return Wgt_real, Wgt_imag
+    return torch.cat((Wgt1_real.unsqueeze(1), Wgt2_real.unsqueeze(1)), dim=1), torch.cat((Wgt1_imag.unsqueeze(1), Wgt2_imag.unsqueeze(1)), dim=1)
+
 def normalize(y):
     y = y/max(abs(y))
     return y
@@ -69,11 +101,12 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         out_nb_real, out_nb_imag, mask_nb_real, mask_nb_imag = net(nbmic_real, nbmic_imag)
 
     Tmax_cl = clean_real.size(-1)
+    Tmax_rev = out_real.size(-1)
+    minT = min(Tmax_cl, Tmax_rev)
+    if (use_ref_IR):
+        minT = min(minT, refmic_real.size(-1))
+
     if(fix_len_by_cl == 'eval'): # note that mic length = output length in this mode
-        Tmax_rev = out_real.size(-1)
-        minT = min(Tmax_cl, Tmax_rev)
-        if(use_ref_IR):
-            minT = min(minT, refmic_real.size(-1))
         out_real = out_real[:, :, :minT]
         out_imag = out_imag[:, :, :minT]
         mask_real = mask_real[:, :, :, :minT]
@@ -94,7 +127,11 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         mask_imag[i, :, :, min(l, minT):] = 0
 
     if(not loss_type == 'sInvSDR_time'):
-        loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl) # loss = -SDR
+        if(not loss_type == 'Wdiff_pow'):
+            loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl) # loss = -SDR
+        else:
+            Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
     else:
         mixed_time, clean_time, len_time = input[3], input[4].cuda(), input[5]
         out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
@@ -136,43 +173,14 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
             # clean: NxFxT
             # targetIR mic(=mixed): NxMxFxT
             # referIR mic(=refmic): NxMxFxT
+            Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
 
-            mixed_real = mixed_real[:, :, :, :minT]
-            mixed_imag = mixed_imag[:, :, :, :minT]
-
-            Xt1_real = mixed_real[:, 0, :, :]
-            Xt1_imag = mixed_imag[:, 0, :, :]
-            Xt2_real = mixed_real[:, 1, :, :]
-            Xt2_imag = mixed_imag[:, 1, :, :]
-
-            Xr1_real = refmic_real[:, 0, :, :]
-            Xr1_imag = refmic_imag[:, 0, :, :]
-            Xr2_real = refmic_real[:, 1, :, :]
-            Xr2_imag = refmic_imag[:, 1, :, :]
-
-            # determinant
-            det_real = (Xt1_real*Xr2_real-Xt1_imag*Xr2_imag) - (Xt2_real*Xr1_real-Xt2_imag*Xr1_imag) # NxFxT
-            det_imag = (Xt1_real*Xr2_imag+Xt1_imag*Xr2_real) - (Xt2_real*Xr1_imag+Xt2_imag*Xr1_real) # NxFxT
-
-            det_mag = torch.sqrt(det_real*det_real + det_imag*det_imag)
-
-            # clean
-            clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag)
-
-            # refmic
-            Xr1_mag = torch.sqrt(Xr1_real*Xr1_real + Xr1_imag*Xr1_imag)
-            Xr2_mag = torch.sqrt(Xr2_real*Xr2_real + Xr2_imag*Xr2_imag)
-
-            # gtW
-            Wgt1 = clean_mag/(det_mag+1e-12)*Xr2_mag
-            Wgt2 = clean_mag/(det_mag+1e-12)*Xr1_mag
-
-        if(use_ref_IR):
             sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
                                     'out_real': out_real.data.cpu().numpy(), 'out_imag':out_imag.data.cpu().numpy(),
                                     'clean_real': clean_real.data.cpu().numpy(), 'clean_imag':clean_imag.data.cpu().numpy(),
                                     'mask_real':mask_real.data.cpu().numpy(), 'mask_imag':mask_imag.data.cpu().numpy(),
-                                     'Wgt1':Wgt1.data.cpu().numpy(), 'Wgt2':Wgt2.data.cpu().numpy()})
+                                     'Wgt_real':Wgt_real.data.cpu().numpy(),'Wgt2_imag':Wgt_imag.data.cpu().numpy(),
+                                     })
         else:
             sio.savemat(specs_path, {'mixed_real':mixed_real.data.cpu().numpy(), 'mixed_imag':mixed_imag.data.cpu().numpy(),
                                     'out_real': out_real.data.cpu().numpy(), 'out_imag':out_imag.data.cpu().numpy(),

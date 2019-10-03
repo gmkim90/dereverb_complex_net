@@ -142,11 +142,11 @@ class SpecDataset(data.Dataset):
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0, hop_length=0,
-                 clamp_frame=0, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False):
+                 do_1st_frame_clamp=False, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False):
         self.return_path = return_path
 
         self.manifest_path = manifest_path
-        self.clamp_frame = clamp_frame
+        self.do_1st_frame_clamp = do_1st_frame_clamp
         self.ref_mic_direct_td_subtract = ref_mic_direct_td_subtract
         self.use_audio = use_audio
 
@@ -226,7 +226,7 @@ class SpecDataset(data.Dataset):
             outputData = np.hstack(outputData_list)
             del outputData_list
 
-        if(self.clamp_frame):
+        if(self.do_1st_frame_clamp):
             outputData = np.pad(outputData, (self.hop_length, 0), 'constant')
 
         # load IR
@@ -291,7 +291,7 @@ class SpecDataset(data.Dataset):
 
 
         #if(self.clamp_frame > 0):
-        if(self.clamp_frame):
+        if(self.do_1st_frame_clamp):
             mixedSTFT = mixedSTFT[:, :, 1:, :] # MxFxTx2
             cleanSTFT = cleanSTFT[:, 1:, :]  # FxTx2
             if(self.use_ref_IR):

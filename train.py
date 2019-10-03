@@ -117,7 +117,7 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list,
                                     nSource=args.nSource, hop_length=hop_length,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
-                                    clamp_frame=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                    do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
                                     use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
@@ -129,7 +129,7 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range=src_range_list,
                                     nSource=args.nSource, hop_length=hop_length,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
-                                    clamp_frame=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                    do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
 
@@ -141,7 +141,7 @@ def main(args):
         val_dataset = SpecDataset(manifest_path=args.val_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl, return_path=args.return_path,
                                   load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                   nSource=args.nSource, hop_length=hop_length,
-                                  clamp_frame=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                  do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                   interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
@@ -151,7 +151,7 @@ def main(args):
         test1_dataset = SpecDataset(manifest_path=args.te1_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
-                                    clamp_frame=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                    do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
@@ -161,7 +161,7 @@ def main(args):
         test2_dataset = SpecDataset(manifest_path=args.te2_manifest, stft=stft, nMic=args.nMic, sampling_method=args.mic_sampling, subset1=args.subset1, subset2=args.subset2, fix_len_by_cl=args.fix_len_by_cl,
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
-                                    clamp_frame=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
+                                    do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
@@ -368,7 +368,7 @@ def main(args):
                 #utils.CPUmemDebug('before backward & step', mem_debug_file)
 
                 optimizer.zero_grad()
-                if(loss2 is not None):
+                if(loss2 is not None and args.w_loss2 > 0):
                     loss_mean += loss2_mean*args.w_loss2
                 loss_mean.backward()
                 optimizer.step()
