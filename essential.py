@@ -163,8 +163,11 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         if(eval2_type.find('Wdiff') == -1):
             eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
         else:
-            Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
-            eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
+            if(use_ref_IR):
+                Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
+            else:
+                eval2_metric = None
     else:
         eval2_metric = None
 

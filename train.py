@@ -384,28 +384,28 @@ def main(args):
                             evaluate(args.expnum, trsub_loader, net, Loss, 'trsub', args.loss_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type, use_ref_IR=args.use_ref_IR)  # do not use Loss2 for evaluate
+                                     , eval2_type=args.eval2_type)  # do not use Loss2 for evaluate
 
                         # Validaion
-                        if (len(args.te1_manifest) > 0):
+                        if (len(args.val_manifest) > 0):
                             evaluate(args.expnum, val_loader, net, Loss, 'val', args.loss_type,
                                      stride_product_time, logger, epoch,  Eval, Eval2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type, use_ref_IR=args.use_ref_IR) # do not use Loss2 for evaluate
+                                     , eval2_type=args.eval2_type) # do not use Loss2 for evaluate
                         #utils.CPUmemDebug('after eval (val)', mem_debug_file)
                         # Test
                         if (len(args.te1_manifest) > 0):
                             evaluate(args.expnum, test1_loader, net, Loss, 'test', args.loss_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     ,eval2_type=args.eval2_type, use_ref_IR=args.use_ref_IR) # do not use Loss2 for evaluate
+                                     ,eval2_type=args.eval2_type) # do not use Loss2 for evaluate
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
                             evaluate(args.expnum, test2_loader, net, Loss, 'test2', args.loss_type,
                                      stride_product_time, logger, epoch, Eval, Eval2,
                                      args.fix_len_by_cl,save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type, use_ref_IR=args.use_ref_IR) # do not use Loss2 for evaluate
+                                     , eval2_type=args.eval2_type) # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -527,7 +527,7 @@ def main(args):
 
 def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
              logger, epoch,  Eval, Eval2, fix_len_by_cl, eval2_type='',
-             use_ref_IR=False, save_wav=False, istft=None):
+             save_wav=False, istft=None):
     count = 0
     loss_total = 0
     #loss2_total = 0
@@ -542,8 +542,7 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
             loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, data_type, loss_type,
                                                              stride_product, mode='train', expnum=expnum,
                                                             Eval=Eval, Eval2=Eval2, eval2_type=eval2_type,
-                                                             fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft,
-                                                                    use_ref_IR=use_ref_IR) # do not use Loss2 & ref_IR for eval
+                                                             fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft) # do not use Loss2 & ref_IR for eval
             save_wav = False # MAKE save_wav activate only once
 
             loss_mean = torch.mean(loss)
