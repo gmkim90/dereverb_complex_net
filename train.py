@@ -292,7 +292,7 @@ def main(args):
                 if(not count % args.log_iter == 0):
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type,stride_product_time, mode='train',
-                                       Eval=Eval, Eval2=Eval2,
+                                       Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                         Loss2 = Loss2, use_ref_IR=args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
@@ -314,7 +314,7 @@ def main(args):
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type,
                                        stride_product_time, mode='train', expnum=args.expnum,
-                                       Eval=Eval, Eval2=Eval2,
+                                       Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                         Loss2 = Loss2, use_ref_IR = args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
@@ -463,7 +463,7 @@ def main(args):
                     else:
                         loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, 'tr', args.loss_type,
                                                                          stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
-                                                                            Loss2=Loss2, Eval=Eval, Eval2=Eval2,
+                                                                            Loss2=Loss2, Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
                                                                          fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                                          save_activation=args.save_activation, use_ref_IR=args.use_ref_IR)
                         reverb_paths = []
@@ -496,7 +496,7 @@ def main(args):
                 for _, input in enumerate(tqdm(val_loader)):
                     loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, 'dt', args.loss_type,
                                                            stride_product_time, expnum=args.expnum, fixed_src=args.fixed_src, mode='generate',
-                                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2,
+                                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
                                                             fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                            save_activation=args.save_activation, use_ref_IR=args.use_ref_IR) # do not use Loss2 & ref_IR in valid
                     count = count + 1
@@ -536,7 +536,7 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
             count += 1
             loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, data_type, loss_type,
                                                              stride_product, mode='train', expnum=expnum,
-                                                            Eval=Eval, Eval2=Eval2,
+                                                            Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
                                                              fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft,
                                                             Loss2 = None, use_ref_IR = False) # do not use Loss2 & ref_IR for eval
             save_wav = False # MAKE save_wav activate only once

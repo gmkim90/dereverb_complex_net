@@ -66,6 +66,8 @@ def var_time(W):
     return var
 
 def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
+    F = X_real.size(2)
+
     # size: NxMxFxT
     XW_real = torch.sum(W_real*X_real-W_imag*X_imag, dim=1) # NxFxT
     XW_imag = torch.sum(W_real*X_imag+W_imag*X_real, dim=1) # NxFxT
@@ -73,7 +75,22 @@ def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
     XW_power = torch.sum(torch.sum(XW_real*XW_real + XW_imag*XW_imag, dim=2), dim=1) # Nx1
 
     Tlist_float = Tlist.float().cuda()
-    XW_power_frame_normalized_negative = -XW_power/Tlist_float # x(-1) for -loss convention
+    XW_power_frame_normalized_negative = -XW_power/(Tlist_float*F) # x(-1) for -loss convention
+
+    return XW_power_frame_normalized_negative
+
+def reference_position_demixing_pow(X_real, X_imag, W_real, W_imag, Tlist):
+    F = X_real.size(2)
+
+    # size: NxMxFxT
+    XW_real = torch.sum(W_real*X_real-W_imag*X_imag, dim=1) # NxFxT
+    XW_imag = torch.sum(W_real*X_imag+W_imag*X_real, dim=1) # NxFxT
+
+    XW_power = XW_real*XW_real + XW_imag*XW_imag # NxFxT
+    XW_power_pow4 = torch.sum(torch.sum(XW_power*XW_power, dim=2), dim=1) # Nx1
+
+    Tlist_float = Tlist.float().cuda()
+    XW_power_frame_normalized_negative = -XW_power_pow4/(Tlist_float*F) # x(-1) for -loss convention
 
     return XW_power_frame_normalized_negative
 
@@ -91,17 +108,36 @@ def distortion_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, e
     return distortion_power_frame_normalized_negative
 
 def distortion_em_pow(clean_real, clean_imag, output_real, output_imag, Tlist):
+    F = clean_real.size(1)
+
     clean_pow = clean_real*clean_real + clean_imag*clean_imag # use pow instead of mag to avoid backprop through sqrt()
     output_pow = output_real*output_real + output_imag*output_imag # use pow instead of mag to avoid backprop through sqrt()
 
-    distortion_pow =  output_pow-clean_pow
+    distortion_pow = output_pow-clean_pow
     err = torch.sum(torch.sum(distortion_pow*distortion_pow, dim=2), dim=1)
 
     Tlist_float = Tlist.float().cuda()
 
-    distortion_power_frame_normalized_negative = -err/Tlist_float # x(-1) for -loss convention
+    distortion_power_frame_normalized_negative = -err/(Tlist_float*F) # x(-1) for -loss convention
 
     return distortion_power_frame_normalized_negative
+
+def distortion_em_L1(clean_real, clean_imag, output_real, output_imag, Tlist):
+    F = clean_real.size(1)
+
+    clean_pow = clean_real*clean_real + clean_imag*clean_imag # use pow instead of mag to avoid backprop through sqrt()
+    output_pow = output_real*output_real + output_imag*output_imag # use pow instead of mag to avoid backprop through sqrt()
+
+    distortion_pow = output_pow-clean_pow
+    err = torch.sum(torch.sum(abs(distortion_pow), dim=2), dim=1)
+    #err = torch.sum(torch.sum(distortion_pow * distortion_pow, dim=2), dim=1)
+
+    Tlist_float = Tlist.float().cuda()
+
+    distortion_power_frame_normalized_negative = -err/(Tlist_float*F) # x(-1) for -loss convention
+
+    return distortion_power_frame_normalized_negative
+
 
 def Wdiff_pow(Wgt_real, Wgt_imag, West_real, West_imag, Tlist):
     F = Wgt_real.size(2)
@@ -114,6 +150,20 @@ def Wdiff_pow(Wgt_real, Wgt_imag, West_real, West_imag, Tlist):
     Tlist_float = Tlist.float().cuda()
 
     MSE = torch.sum(torch.sum(torch.sum(err*err, dim=3), dim=2), dim=1)/(Tlist_float*F)
+
+    return -MSE # x(-1) for -loss convention
+
+def Wdiff_L1(Wgt_real, Wgt_imag, West_real, West_imag, Tlist):
+    F = Wgt_real.size(2)
+
+    Wgt_pow = Wgt_real*Wgt_real + Wgt_imag*Wgt_imag # use pow instead of mag to avoid backprop through sqrt()
+    West_pow = West_real*West_real + West_imag*West_imag  # use pow instead of mag to avoid backprop through sqrt()
+
+    err = Wgt_pow - West_pow # NxMxFxT
+
+    Tlist_float = Tlist.float().cuda()
+
+    MSE = torch.sum(torch.sum(torch.sum(abs(err), dim=3), dim=2), dim=1)/(Tlist_float*F)
 
     return -MSE # x(-1) for -loss convention
 

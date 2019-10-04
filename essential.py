@@ -63,7 +63,7 @@ def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
     return neighbor_sensitivity
 
 def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1, fixed_src=False,
-                   Loss2 = None, Eval=None, Eval2=None, fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
+                   Loss2 = None, Eval=None, Eval2=None, eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
                    use_ref_IR=False, use_neighbor_IR=False):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
@@ -127,7 +127,7 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         mask_imag[i, :, :, min(l, minT):] = 0
 
     if(not loss_type == 'sInvSDR_time'):
-        if(not loss_type == 'Wdiff_pow'):
+        if(loss_type.find('Wdiff') == -1):
             loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl) # loss = -SDR
         else:
             Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
@@ -160,7 +160,11 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
             eval_metric = Eval(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
 
     if(Eval2 is not None):
-        eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+        if(eval2_type.find('Wdiff') == -1):
+            eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+        else:
+            Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
     else:
         eval2_metric = None
 
