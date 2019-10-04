@@ -106,6 +106,8 @@ parser.add_argument('--loss_type', default='sInvSDR_mag', type=str, help='time|s
 parser.add_argument('--loss2_type', default='', type=str, help='referece_position_demixing')
 
 parser.add_argument('--use_ref_IR', default=False, type=str2bool, help='usage of IR from reference position')
+#parser.add_argument('--use_ref_IR_te', default=False, type=str2bool, help='usage of IR from reference position')
+
 parser.add_argument('--use_neighbor_IR', default=False, type=str2bool, help='usage of neighborhood IRs for SDR sensitivity')
 parser.add_argument('--w_loss2', default=1, type=float, help='task weight of auxiliary loss (e.g., refIR demixing)')
 

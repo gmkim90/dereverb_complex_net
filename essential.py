@@ -62,7 +62,7 @@ def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
     neighbor_sensitivity = 0
     return neighbor_sensitivity
 
-def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1, fixed_src=False,
+def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1,
                    Loss2 = None, Eval=None, Eval2=None, eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
                    use_ref_IR=False, use_neighbor_IR=False):
 
