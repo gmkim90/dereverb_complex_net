@@ -120,7 +120,9 @@ def load_data_list(manifest_path='', use_localization=False, src_range = None, u
             if(not os.path.exists(src_path)):
                 assert(0), src_path + ' clean speech not exists'
             if(use_ref_IR):
-                assert(os.path.exists(dataset['ref_IR'][-1] + '_ch1.npy')), 'reverberant IR (reference position) not exists'
+                refIR_path = dataset['ref_IR'][-1] + '_ch1.npy'
+                if(not os.path.exists(refIR_path)):
+                    assert(0), refIR_path + ' not exists'
 
     manifest.close()
 

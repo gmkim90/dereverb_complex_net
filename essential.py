@@ -10,7 +10,6 @@ import scipy.io as sio
 from models.loss import var_time
 
 import pdb
-
 def get_gtW(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
 
@@ -63,7 +62,7 @@ def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
     return neighbor_sensitivity
 
 def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1,
-                   Loss2 = None, Eval=None, Eval2=None, eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
+                   Loss2 = None, Eval=None, Eval2=None, loss2_type = '', eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
                    use_ref_IR=False, use_neighbor_IR=False):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
@@ -148,8 +147,15 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         # TODO: return loss_sensitivity loss & include at the training
         loss_sensitivity = neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor)
 
+    #pdb.set_trace()
     if(Loss2 is not None):
-        loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
+        if(use_ref_IR):
+            if(loss2_type == 'reference_position_demixing'):
+                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
+            elif(loss2_type == 'refIR_demix_positive'):
+                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
+        else:
+            loss2 = None
     else:
         loss2 = None
 

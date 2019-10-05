@@ -130,7 +130,7 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR)
+                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
 
 
@@ -142,7 +142,7 @@ def main(args):
                                   load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                   nSource=args.nSource, hop_length=hop_length,
                                   do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                  interval_cm=args.interval_cm_te, use_audio=args.save_wav)
+                                  interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
@@ -152,7 +152,7 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
@@ -162,7 +162,7 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav) # for test2, set pos_range as 'all' (all positions within a room)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     torch.set_printoptions(precision=10, profile="full")
@@ -292,7 +292,8 @@ def main(args):
                 if(not count % args.log_iter == 0):
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type,stride_product_time, mode='train',
-                                       Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
+                                       Eval=Eval, Eval2=Eval2,
+                                       loss2_type=args.loss2_type, eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                         Loss2 = Loss2, use_ref_IR=args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
@@ -314,7 +315,8 @@ def main(args):
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, 'train', args.loss_type,
                                        stride_product_time, mode='train', expnum=args.expnum,
-                                       Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
+                                       Eval=Eval, Eval2=Eval2,
+                                       loss2_type=args.loss2_type, eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                         Loss2 = Loss2, use_ref_IR = args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR)
                     loss_mean = torch.mean(loss)
@@ -382,30 +384,30 @@ def main(args):
                         # Training subset
                         if (len(args.trsub_manifest) > 0):
                             evaluate(args.expnum, trsub_loader, net, Loss, 'trsub', args.loss_type,
-                                     stride_product_time, logger, epoch, Eval, Eval2,
+                                     stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type)  # do not use Loss2 for evaluate
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
                             evaluate(args.expnum, val_loader, net, Loss, 'val', args.loss_type,
-                                     stride_product_time, logger, epoch,  Eval, Eval2,
+                                     stride_product_time, logger, epoch,  Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type) # do not use Loss2 for evaluate
+                                     , eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te) # do not use Loss2 for evaluate
                         #utils.CPUmemDebug('after eval (val)', mem_debug_file)
                         # Test
                         if (len(args.te1_manifest) > 0):
                             evaluate(args.expnum, test1_loader, net, Loss, 'test', args.loss_type,
-                                     stride_product_time, logger, epoch, Eval, Eval2,
+                                     stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft
-                                     ,eval2_type=args.eval2_type) # do not use Loss2 for evaluate
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te) # do not use Loss2 for evaluate
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
                             evaluate(args.expnum, test2_loader, net, Loss, 'test2', args.loss_type,
-                                     stride_product_time, logger, epoch, Eval, Eval2,
+                                     stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl,save_wav=args.save_wav, istft=istft
-                                     , eval2_type=args.eval2_type) # do not use Loss2 for evaluate
+                                     , eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te) # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -467,7 +469,8 @@ def main(args):
                     else:
                         loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, 'tr', args.loss_type,
                                                                          stride_product_time, expnum=args.expnum,  mode='generate',
-                                                                            Loss2=Loss2, Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
+                                                                            Loss2=Loss2, Eval=Eval, Eval2=Eval2,
+                                                                                loss2_type=args.loss2_type, eval2_type=args.eval2_type,
                                                                          fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                                          save_activation=args.save_activation, use_ref_IR=args.use_ref_IR)
                         reverb_paths = []
@@ -500,7 +503,8 @@ def main(args):
                 for _, input in enumerate(tqdm(val_loader)):
                     loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, 'dt', args.loss_type,
                                                            stride_product_time, expnum=args.expnum, mode='generate',
-                                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2, eval2_type=args.eval2_type,
+                                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2,
+                                                            loss2_type=args.loss2_type,eval2_type=args.eval2_type,
                                                             fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                            save_activation=args.save_activation, use_ref_IR=args.use_ref_IR) # do not use Loss2 & ref_IR in valid
                     count = count + 1
@@ -526,11 +530,12 @@ def main(args):
 
 
 def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
-             logger, epoch,  Eval, Eval2, fix_len_by_cl, eval2_type='',
-             save_wav=False, istft=None):
+             logger, epoch,  Eval, Eval2, Loss2, fix_len_by_cl,
+             eval2_type='', loss2_type ='',
+             save_wav=False, istft=None, use_ref_IR=False):
     count = 0
     loss_total = 0
-    #loss2_total = 0
+    loss2_total = 0
     eval_metric_total = 0
     eval2_metric_total = 0
 
@@ -541,8 +546,10 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
             count += 1
             loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, data_type, loss_type,
                                                              stride_product, mode='train', expnum=expnum,
-                                                            Eval=Eval, Eval2=Eval2, eval2_type=eval2_type,
-                                                             fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft) # do not use Loss2 & ref_IR for eval
+                                                            Eval=Eval, Eval2=Eval2, Loss2=Loss2,
+                                                                    eval2_type=eval2_type, loss2_type=loss2_type,
+                                                             fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft,
+                                                                    use_ref_IR=use_ref_IR) # do not use Loss2 & ref_IR for eval
             save_wav = False # MAKE save_wav activate only once
 
             loss_mean = torch.mean(loss)
@@ -558,18 +565,18 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
                 eval2_metric_total += eval2_metric_mean.item()
 
     loss_total = loss_total / len(loader)
-    #loss2_total = loss2_total / len(loader)
+    loss2_total = loss2_total / len(loader)
     eval_metric_total = eval_metric_total / len(loader)
     eval2_metric_total = eval2_metric_total / len(loader)
 
     print(data_type + ', epoch: ' + str(epoch) + ', loss: ' + str(loss_total))
-    #print(data_type + ', epoch: ' + str(epoch) + ', loss2: ' + str(loss2_total))
+    print(data_type + ', epoch: ' + str(epoch) + ', loss2: ' + str(loss2_total))
     print(data_type + ', epoch: ' + str(epoch) + ', eval_metric: ' + str(eval_metric_total))
     print(data_type + ', epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_total))
 
     if(logger is not None):
         logger.write(data_type + ', epoch: ' + str(epoch) + ', loss: ' + str(loss_total) + '\n')
-        #logger.write(data_type + ', epoch: ' + str(epoch) + ', loss2: ' + str(loss2_total) + '\n')
+        logger.write(data_type + ', epoch: ' + str(epoch) + ', loss2: ' + str(loss2_total) + '\n')
         logger.write(data_type + ', epoch: ' + str(epoch) + ', eval_metric: ' + str(eval_metric_total) + '\n')
         logger.write(data_type + ', epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_total) + '\n')
 
