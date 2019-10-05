@@ -65,6 +65,26 @@ def var_time(W):
 
     return var
 
+def refIR_demix_positive(X_real, X_imag, W_real, W_imag, S_real, S_imag, Tlist, eps=1e-20):
+    F = X_real.size(2)
+
+    S_mag = torch.sqrt(S_real*S_real + S_imag*S_imag+eps)
+
+    # size: NxMxFxT
+    O_real = torch.sum(W_real*X_real-W_imag*X_imag, dim=1) # NxFxT
+    O_imag = torch.sum(W_real*X_imag+W_imag*X_real, dim=1) # NxFxT
+
+    O_mag = torch.sqrt(O_real*O_real + O_imag*O_imag + eps) # NxFxT
+
+    distortion_mag =  O_mag-S_mag
+    distortion_power = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    Tlist_float = Tlist.float().cuda()
+
+    distortion_power_frame_normalized_negative = -distortion_power/(Tlist_float*F) # x(-1) for -loss convention
+
+    return distortion_power_frame_normalized_negative
+
 def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
     F = X_real.size(2)
 
@@ -140,6 +160,51 @@ def distortion_em_L1(clean_real, clean_imag, output_real, output_imag, Tlist):
 
     return distortion_power_frame_normalized_negative
 
+def Wdiff_mag(Wgt_real, Wgt_imag, West_real, West_imag, Tlist, eps=1e-20):
+    F = Wgt_real.size(2)
+
+    Wgt_mag = torch.sqrt(Wgt_real*Wgt_real + Wgt_imag*Wgt_imag+eps)
+    West_mag = torch.sqrt(West_real*West_real + West_imag*West_imag+eps)
+
+    err = Wgt_mag - West_mag # NxMxFxT
+
+    Tlist_float = Tlist.float().cuda()
+
+    MSE = torch.sum(torch.sum(torch.sum(err*err, dim=3), dim=2), dim=1)/(Tlist_float*F)
+
+    return -MSE # x(-1) for -loss convention
+
+def Wdiff_mag_gtnormalized(Wgt_real, Wgt_imag, West_real, West_imag, Tlist, eps=1e-20):
+    Wgt_mag = torch.sqrt(Wgt_real*Wgt_real + Wgt_imag*Wgt_imag+eps)
+    West_mag = torch.sqrt(West_real*West_real + West_imag*West_imag+eps)
+
+    err = Wgt_mag - West_mag # NxMxFxT
+
+    #Tlist_float = Tlist.float().cuda()
+
+    Wgt_sq_sum = torch.sum(torch.sum(torch.sum(Wgt_mag*Wgt_mag, dim=3), dim=2), dim=1)
+
+    distortion_to_signal_power = torch.sum(torch.sum(torch.sum(err*err, dim=3), dim=2), dim=1)/Wgt_sq_sum
+    # note that distortion_to_signal_power is already normalized by #frame
+
+    return -distortion_to_signal_power# x(-1) for -loss convention
+
+
+def SDR_Wdiff_mag(Wgt_real, Wgt_imag, West_real, West_imag, Tlist, eps=1e-20):
+    # Tlist is for dummy
+
+    Wgt_mag = torch.sqrt(Wgt_real*Wgt_real + Wgt_imag*Wgt_imag + eps)
+    West_mag = torch.sqrt(West_real*West_real + West_imag*West_imag + eps)
+
+    distortion = Wgt_mag - West_mag # NxMxFxT
+
+    signal_power = torch.sum(torch.sum(torch.sum(Wgt_mag*Wgt_mag, dim=3), dim=2), dim=1)
+    distortion_power = torch.sum(torch.sum(torch.sum(distortion*distortion, dim=3), dim=2), dim=1)
+
+    SDR = 10*(torch.log10(signal_power+eps)-torch.log10(distortion_power+eps))
+    # note that SDR is already normalized by #frame
+
+    return SDR
 
 def Wdiff_pow(Wgt_real, Wgt_imag, West_real, West_imag, Tlist):
     F = Wgt_real.size(2)
