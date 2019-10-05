@@ -95,6 +95,8 @@ def reference_position_demixing_pow(X_real, X_imag, W_real, W_imag, Tlist):
     return XW_power_frame_normalized_negative
 
 def distortion_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-12):
+    F = cleam_mag.size(1)
+
     clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
     output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)
 
@@ -103,7 +105,7 @@ def distortion_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, e
 
     Tlist_float = Tlist.float().cuda()
 
-    distortion_power_frame_normalized_negative = -distortion_power/Tlist_float # x(-1) for -loss convention
+    distortion_power_frame_normalized_negative = -distortion_power/(Tlist_float*F) # x(-1) for -loss convention
 
     return distortion_power_frame_normalized_negative
 
