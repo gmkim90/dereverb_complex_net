@@ -161,11 +161,14 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         if(loss_type.find('Wdiff') == -1):
             loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl) # loss = -SDR
         else:
-            if(loss_type.find('positive') == -1):
-                Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            if(use_ref_IR):
+                if(loss_type.find('positive') == -1):
+                    Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                else:
+                    Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
             else:
-                Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
-            loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
+                loss = torch.zeros(8,1).cuda()
     else:
         mixed_time, clean_time, len_time = input[3], input[4].cuda(), input[5]
         out_audio = istft(out_real.squeeze(), out_imag.squeeze(), mixed_time.size(-1))
