@@ -10,6 +10,38 @@ import scipy.io as sio
 from models.loss import var_time
 
 import pdb
+def get_gtW_positive(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
+    assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
+
+    Xt1_real = Xt_real[:, 0, :, :]
+    Xt1_imag = Xt_imag[:, 0, :, :]
+    Xt2_real = Xt_real[:, 1, :, :]
+    Xt2_imag = Xt_imag[:, 1, :, :]
+
+    Xr1_real = Xr_real[:, 0, :, :]
+    Xr1_imag = Xr_imag[:, 0, :, :]
+    Xr2_real = Xr_real[:, 1, :, :]
+    Xr2_imag = Xr_imag[:, 1, :, :]
+
+    # determinant
+    det_real = (Xt1_real * Xr2_real - Xt1_imag * Xr2_imag) - (Xt2_real * Xr1_real - Xt2_imag * Xr1_imag)  # NxFxT
+    det_imag = (Xt1_real * Xr2_imag + Xt1_imag * Xr2_real) - (Xt2_real * Xr1_imag + Xt2_imag * Xr1_real)  # NxFxT
+
+    det_power = det_real * det_real + det_imag * det_imag
+
+    # S/det
+    S_det_real = (S_real * det_real + S_imag * det_imag) / (det_power+eps)
+    S_det_imag = (S_imag * det_real - S_real * det_imag) / (det_power+eps)
+
+    # multiply Xref (=Wgt)
+    Wgt1_real = S_det_real * (Xr2_real-Xt2_real) - S_det_imag * (Xr2_imag-Xt2_imag)
+    Wgt1_imag = S_det_real * (Xr2_imag-Xt2_imag) + S_det_imag * (Xr2_real-Xt2_real)
+    Wgt2_real = S_det_real * (-Xr1_real+Xt1_real) - S_det_imag * (-Xr1_imag+Xt1_imag)
+    Wgt2_imag = S_det_real * (-Xr1_imag+Xt1_imag) + S_det_imag * (-Xr1_real+Xt1_real)
+
+    #return Wgt_real, Wgt_imag
+    return torch.cat((Wgt1_real.unsqueeze(1), Wgt2_real.unsqueeze(1)), dim=1), torch.cat((Wgt1_imag.unsqueeze(1), Wgt2_imag.unsqueeze(1)), dim=1)
+
 def get_gtW(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
 
@@ -129,7 +161,10 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         if(loss_type.find('Wdiff') == -1):
             loss = -Loss(clean_real, clean_imag, out_real, out_imag, len_STFT_cl) # loss = -SDR
         else:
-            Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            if(loss_type.find('positive') == -1):
+                Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            else:
+                Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
             loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
     else:
         mixed_time, clean_time, len_time = input[3], input[4].cuda(), input[5]
@@ -170,7 +205,10 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
             eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
         else:
             if(use_ref_IR):
-                Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                if (loss2_type.find('positive') == -1): # depends on loss2 type !!
+                    Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                else:
+                    Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
                 eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
             else:
                 eval2_metric = None
