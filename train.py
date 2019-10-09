@@ -119,7 +119,7 @@ def main(args):
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
-                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR)
+                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR, mic_gain_heuristic=args.mic_gain_heuristic)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
@@ -130,7 +130,8 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
+                                    interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
+                                    , mic_gain_heuristic=args.mic_gain_heuristic)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
 
 
@@ -142,7 +143,8 @@ def main(args):
                                   load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                   nSource=args.nSource, hop_length=hop_length,
                                   do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                  interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
+                                  interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
+                                  , mic_gain_heuristic=args.mic_gain_heuristic)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
@@ -152,7 +154,8 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
+                                    , mic_gain_heuristic=args.mic_gain_heuristic)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
@@ -162,7 +165,8 @@ def main(args):
                                     load_IR=args.load_IR, use_localization=args.use_localization, src_range='all',
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
-                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te) # for test2, set pos_range as 'all' (all positions within a room)
+                                    interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
+                                    , mic_gain_heuristic=args.mic_gain_heuristic) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     torch.set_printoptions(precision=10, profile="full")
@@ -207,7 +211,10 @@ def main(args):
                   use_bn=args.use_BN, input_type=args.input_type, ds_rate=args.ds_rate, reverb_frame=args.reverb_frame, CW_freq=args.CW_freq,
                   inverse_type = args.inverse_type)
         stride_product_time = 0
-
+    elif (args.model_type == 'tdnn'):
+        from models.unet import TDNN
+        net = TDNN(nLayer=args.nLayer, nHidden=args.nHidden, nMic = args.nMic, nFreq=int((n_fft/args.ds_rate)/2+1))
+        stride_product_time = 0
     elif(args.model_type == 'realunet'):
         from models.unet import RealUnet
         json_path = os.path.join(args.model_json)
@@ -438,7 +445,10 @@ def main(args):
         net.cuda()
 
         # Optimizer
-        optimizer = optim.Adam(net.parameters(), lr=args.lR0, amsgrad=True)
+        if(args.optimizer == 'adam'):
+            optimizer = optim.Adam(net.parameters(), lr=args.lR0, amsgrad=True)
+        elif(args.optimizer == 'sgd'):
+            optimizer = optim.Adam(net.parameters(), lr=args.lR0)
 
         print('load saved optimizer and move to gpu')
         optimizer.load_state_dict(checkpoint['optimizer'])  # order is important

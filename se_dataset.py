@@ -144,7 +144,8 @@ class SpecDataset(data.Dataset):
 
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0, hop_length=0,
-                 do_1st_frame_clamp=False, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False):
+                 do_1st_frame_clamp=False, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False,
+                 mic_gain_heuristic=1):
         self.return_path = return_path
 
         self.manifest_path = manifest_path
@@ -153,6 +154,8 @@ class SpecDataset(data.Dataset):
         self.use_audio = use_audio
 
         self.hop_length = hop_length
+
+        self.mic_gain_heuristic = mic_gain_heuristic
 
         # ver 1. all of wav data is loaded in advance
         #dataset = load_data_list(manifest_path=manifest_path)
@@ -278,11 +281,18 @@ class SpecDataset(data.Dataset):
         clean = torch.FloatTensor(outputData)
         del inputData, outputData
 
+        #torch.save([mixed, clean], 'mixed.pth')
+
         T = clean.nelement()
         if(self.fix_len_by_cl == 'input'):
             mixed = mixed[:, :T]
             if(self.use_ref_IR):
                 refmic = refmic[:, :T]
+
+        if(self.mic_gain_heuristic > 1):
+            mixed = mixed*self.mic_gain_heuristic
+            if(self.use_ref_IR):
+                refmic = refmic*self.mic_gain_heuristic
 
         mixedSTFT = self.stft(mixed.cuda())
         cleanSTFT = self.stft(clean.cuda())

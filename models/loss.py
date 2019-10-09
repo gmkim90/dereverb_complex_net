@@ -202,6 +202,21 @@ def Wdiff_realimag_gtnormalized(Wgt_real, Wgt_imag, West_real, West_imag, Tlist,
 
     return -distortion_to_signal_power# x(-1) for -loss convention
 
+def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, Tlist):
+    F = Wgt_real.size(2)
+
+    Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
+    West = torch.cat((West_real, West_imag), dim=1) # concat along mic dimension
+
+    err = Wgt - West # NxMxFxT
+    #print('||Wgt|| = ' + str(Wgt.norm().item()))
+
+    Tlist_float = Tlist.float().cuda()
+
+    MSE = torch.sum(torch.sum(torch.sum(err*err, dim=3), dim=2), dim=1)/(Tlist_float*F)
+
+    return -MSE # x(-1) for -loss convention
+
 def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, Tlist, eps=1e-20):
     # Tlist is for dummy
 

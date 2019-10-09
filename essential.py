@@ -74,6 +74,13 @@ def get_gtW(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     #return Wgt_real, Wgt_imag
     return torch.cat((Wgt1_real.unsqueeze(1), Wgt2_real.unsqueeze(1)), dim=1), torch.cat((Wgt1_imag.unsqueeze(1), Wgt2_imag.unsqueeze(1)), dim=1)
 
+def get_cmvn_per_freq(W):
+    # W: NxMxFxT
+    Wmean = W.mean(3).mean(0).unsqueeze(0).unsqueeze(3) # 1xMxFx1
+    Wstd = W.mean(3).std(0).unsqueeze(0).unsqueeze(3) # 1xMxFx1
+
+    return Wmean, Wstd
+
 def normalize(y):
     y = y/max(abs(y))
     return y
@@ -107,6 +114,11 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
     elif(use_neighbor_IR):
         nbmicSTFT = input[3].cuda()
         nbmicSTFT = nbmicSTFT.view(-1, nCH, F, nbmicSTFT.size(3), 2)
+
+    #mixedSTFT = mixedSTFT[:, :, :, 3:5, :] # select t=4, 5
+    #cleanSTFT = cleanSTFT[:, :, 3:5, :] # select t=4, 5
+    #refmicSTFT = refmicSTFT[:, :, :, 3:5, :] # select t=4, 5
+
 
 
     if(stride_product > 0 and not Tf % stride_product == 1):
@@ -166,7 +178,17 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
                     Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
                 else:
                     Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+
+                # do cmvn
+                #Wgt_real_mean, Wgt_real_std = get_cmvn_per_freq(Wgt_real)
+                #Wgt_imag_mean, Wgt_imag_std = get_cmvn_per_freq(Wgt_imag)
+                #mask_real = mask_real*Wgt_real_std + Wgt_real_mean
+                #mask_imag = mask_imag*Wgt_imag_std + Wgt_imag_mean
+
                 loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
+                #sio.savemat('Wgt.mat', {'Wgt_real': Wgt_real.data.cpu().numpy(), 'Wgt_imag': Wgt_imag.data.cpu().numpy()})
+                #sio.savemat('West.mat', {'West_real': mask_real.data.cpu().numpy(), 'mask_imag': mask_imag.data.cpu().numpy()})
+                #pdb.set_trace()
             else:
                 loss = torch.zeros(8,1).cuda()
     else:

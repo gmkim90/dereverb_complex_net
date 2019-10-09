@@ -64,6 +64,8 @@ parser.add_argument('--nFinterval', default=9, type=int) # 10 ->9
 parser.add_argument('--use_depthwise', default=False, type=str2bool)
 parser.add_argument('--w_var', default=0, type=float)
 
+parser.add_argument('--optimizer', default='adam', type=str)
+
 parser.add_argument('--grid_cm', default=0, type=int, help = 'if larger than 0, it use L221_10105_grid dataset ')
 
 parser.add_argument('--model_type', default = 'unet', type=str, help = 'unet|lcn')
@@ -91,6 +93,13 @@ parser.add_argument('--hop_length', default=0, type=int, help = 'if 0, automatic
 
 parser.add_argument('--RT', default=0.2, type=float)
 
+# TDNN
+#parser.add_argument('--nLayer', default=3, type=int)
+#parser.add_argument('--nHidden', default=256, type=int)
+parser.add_argument('--1frame_debug', default=False, type=str2bool)
+
+
+parser.add_argument('--mic_gain_heuristic', default=1, type=float)
 
 
 # for evaluation only
@@ -113,7 +122,7 @@ parser.add_argument('--w_loss2', default=1, type=float, help='task weight of aux
 
 parser.add_argument('--batch_size', default=8, type=int, help='train batch size')
 parser.add_argument('--expnum', default=-1, type=int)
-parser.add_argument('--num_epochs', default=500, type=int, help='train epochs number')
+parser.add_argument('--num_epochs', default=10000, type=int, help='train epochs number')
 parser.add_argument('--log_iter', default=10, type=int)
 parser.add_argument('--eval_iter', default=500, type=int, help = 'if 0, it will be set to #iter per epoch (= len(train_loader))')
 parser.add_argument('--lR0', default=1e-4, type=float)
@@ -123,6 +132,8 @@ parser.add_argument('--start_epoch', default=0, type=int, help = 'if > 0, resume
 #parser.add_argument('--clamp_src', default=0, type=int, help = 'if > 0, clamp clean source of front/end. (i.e., clamp front/end silence)')
 #parser.add_argument('--clamp_frame', default=0, type=int, help = 'if > 0, clamp S & X of front/end as frame unit(i.e., clamp front/end silence)')
 parser.add_argument('--do_1st_frame_clamp', default=False, type=str2bool, help = 'append zero to source & clamp 1st frame on src & mic')
+
+#parser.add_argument('--single_mb_debug', default=False, type=str2bool, help = 'append zero to source & clamp 1st frame on src & mic')
 
 
 parser.add_argument('--ref_mic_direct_td_subtract', default=True, type=str2bool)
