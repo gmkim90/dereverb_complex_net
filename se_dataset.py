@@ -293,6 +293,8 @@ class SpecDataset(data.Dataset):
             mixed = mixed*self.mic_gain_heuristic
             if(self.use_ref_IR):
                 refmic = refmic*self.mic_gain_heuristic
+        elif(self.mic_gain_heuristic < 1):
+            clean = clean*self.mic_gain_heuristic
 
         mixedSTFT = self.stft(mixed.cuda())
         cleanSTFT = self.stft(clean.cuda())
