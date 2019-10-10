@@ -302,8 +302,16 @@ def SDR_em_realimag(clean_real, clean_imag, output_real, output_imag, Tlist, eps
     return SDR # #minibatchx1
 
 
-def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-10):  # scale invariant SDR loss function
+def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, s_std=None, eps=1e-12):  # scale invariant SDR loss function
     # Tlist as dummy variable
+
+    if(s_std is not None):
+        #print('s_std is used!!')
+        s_std = s_std.unsqueeze(0).unsqueeze(2) # F --> 1xFx1 (NxFxT)
+        clean_real = clean_real * s_std
+        clean_imag = clean_imag * s_std
+        output_real = output_real * s_std
+        output_imag = output_imag * s_std
 
     clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
     output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)

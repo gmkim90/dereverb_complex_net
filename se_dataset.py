@@ -145,7 +145,7 @@ class SpecDataset(data.Dataset):
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0, hop_length=0,
                  do_1st_frame_clamp=False, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False,
-                 mic_gain_heuristic=1):
+                 mic_gain_heuristic=1, x_std=None, s_std=None):
         self.return_path = return_path
 
         self.manifest_path = manifest_path
@@ -156,6 +156,12 @@ class SpecDataset(data.Dataset):
         self.hop_length = hop_length
 
         self.mic_gain_heuristic = mic_gain_heuristic
+        self.x_std = x_std
+        self.s_std = s_std
+
+        if(self.x_std is not None):
+            self.x_std = self.x_std.view(1, self.x_std.size(0), 1, 1) # F --> 1xFx1x1   (MxFxTx2)
+            self.s_std = self.s_std.view(self.s_std.size(0), 1, 1)  # F --> Fx1x1 (FxTx2)
 
         # ver 1. all of wav data is loaded in advance
         #dataset = load_data_list(manifest_path=manifest_path)
@@ -303,6 +309,11 @@ class SpecDataset(data.Dataset):
         if(self.use_neighbor_IR):
             nbmicSTFT = self.stft(neighbormic_all.cuda()) # nNeighbor * nMic samples
 
+        if(self.x_std is not None): # variance normalization on src & mic
+            mixedSTFT = mixedSTFT/self.x_std
+            cleanSTFT = cleanSTFT/self.s_std
+            if(self.use_ref_IR):
+                refmicSTFT = refmicSTFT/self.x_std
 
         #if(self.clamp_frame > 0):
         if(self.do_1st_frame_clamp):
@@ -417,6 +428,7 @@ class SpecDataset(data.Dataset):
         if(self.use_audio):
             seq_lens_time = torch.IntTensor([i.shape[-1] for i in cleans_time]) # measured by clean
 
+        #pdb.set_trace()
         x_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(mixeds_STFT))
         y_STFT = torch.FloatTensor(self.zero_pad_concat_STFT(cleans_STFT)).squeeze() # may contain garbage dimension
         del cleans_STFT, mixeds_STFT

@@ -75,6 +75,14 @@ def main(args):
         window = torch.load(window_path, map_location=torch.device('cpu'))
     window = window.cuda()
 
+    if(args.do_corpus_vn):
+        stat = torch.load('variance_statistic_nFFT' + str(n_fft) + '_nSample10000.pth')
+        x_std = stat['Xmag_std']
+        s_std = stat['Smag_std']
+    else:
+        x_std = None
+        s_std = None
+
     if(args.save_wav):
         savename_ISTFT = 'ISTFT_' + str(n_fft) + '.pth'
         from models.layers.istft import ISTFT
@@ -119,7 +127,8 @@ def main(args):
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
-                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR, mic_gain_heuristic=args.mic_gain_heuristic)
+                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR, mic_gain_heuristic=args.mic_gain_heuristic,
+                                    x_std=x_std, s_std=s_std)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
@@ -131,7 +140,7 @@ def main(args):
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
 
 
@@ -144,7 +153,7 @@ def main(args):
                                   nSource=args.nSource, hop_length=hop_length,
                                   do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                   interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                  , mic_gain_heuristic=args.mic_gain_heuristic)
+                                  , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
@@ -155,7 +164,7 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
@@ -166,7 +175,7 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic) # for test2, set pos_range as 'all' (all positions within a room)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     torch.set_printoptions(precision=10, profile="full")
@@ -175,21 +184,33 @@ def main(args):
     # Set loss type
     if(len(args.loss_type) > 0):
         Loss = getattr(losses, args.loss_type)
+        if (args.loss_type == 'SDR_em_mag' and args.do_corpus_vn): # TODO: improve heuristic implementation
+            from models.loss import SDR_em_mag
+            Loss = lambda s_r, s_i, o_r, o_i, Tlist: SDR_em_mag(s_r, s_i, o_r, o_i, Tlist, s_std)
     else:
         Loss = None
 
     if(len(args.loss2_type) > 0):
         Loss2 = getattr(losses, args.loss2_type)
+        if (args.loss2_type == 'SDR_em_mag' and args.do_corpus_vn): # TODO: improve heuristic implementation
+            from models.loss import SDR_em_mag
+            Loss2 = lambda s_r, s_i, o_r, o_i, Tlist: SDR_em_mag(s_r, s_i, o_r, o_i, Tlist, s_std)
     else:
         Loss2 = None
 
     if(len(args.eval_type) > 0):
         Eval = getattr(losses, args.eval_type)
+        if (args.eval_type == 'SDR_em_mag' and args.do_corpus_vn): # TODO: improve heuristic implementation
+            from models.loss import SDR_em_mag
+            Eval = lambda s_r, s_i, o_r, o_i, Tlist: SDR_em_mag(s_r, s_i, o_r, o_i, Tlist, s_std)
     else:
         Eval = None
 
     if (len(args.eval2_type) > 0):
         Eval2 = getattr(losses, args.eval2_type)
+        if (args.eval2_type == 'SDR_em_mag' and args.do_corpus_vn): # TODO: improve heuristic implementation
+            from models.loss import SDR_em_mag
+            Eval2 = lambda s_r, s_i, o_r, o_i, Tlist: SDR_em_mag(s_r, s_i, o_r, o_i, Tlist, s_std)
     else:
         Eval2 = None
 

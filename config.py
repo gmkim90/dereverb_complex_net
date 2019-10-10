@@ -101,6 +101,8 @@ parser.add_argument('--1frame_debug', default=False, type=str2bool)
 
 parser.add_argument('--mic_gain_heuristic', default=1, type=float)
 
+parser.add_argument('--do_corpus_vn', default=False, type=str2bool)
+
 
 # for evaluation only
 parser.add_argument('--eval_type', default='sInvSDR_mag', type=str, help='time|spec|sInvSDR_mag|srcIndepSDR_mag')
