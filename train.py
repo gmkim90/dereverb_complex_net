@@ -128,7 +128,7 @@ def main(args):
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
                                     use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR, mic_gain_heuristic=args.mic_gain_heuristic,
-                                    x_std=x_std, s_std=s_std)
+                                    x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
@@ -140,7 +140,7 @@ def main(args):
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
 
 
@@ -153,7 +153,7 @@ def main(args):
                                   nSource=args.nSource, hop_length=hop_length,
                                   do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                   interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                  , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
+                                  , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
@@ -164,7 +164,7 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
@@ -175,7 +175,7 @@ def main(args):
                                     nSource=args.nSource, hop_length=hop_length,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_te, use_audio=args.save_wav, use_ref_IR=args.use_ref_IR_te
-                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std) # for test2, set pos_range as 'all' (all positions within a room)
+                                    , mic_gain_heuristic=args.mic_gain_heuristic, x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db) # for test2, set pos_range as 'all' (all positions within a room)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     torch.set_printoptions(precision=10, profile="full")

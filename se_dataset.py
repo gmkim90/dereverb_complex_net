@@ -145,7 +145,7 @@ class SpecDataset(data.Dataset):
     def __init__(self, manifest_path, stft, nMic=8, sampling_method='no', subset1=None, subset2=None, return_path=False, fix_len_by_cl='input',
                  load_IR=False, use_localization=False, src_range=None, nSource=1, start_ratio=0.0, end_ratio=1.0, hop_length=0,
                  do_1st_frame_clamp=False, ref_mic_direct_td_subtract=True, interval_cm=1, use_audio=False, use_ref_IR=False, use_neighbor_IR=False,
-                 mic_gain_heuristic=1, x_std=None, s_std=None):
+                 mic_gain_heuristic=1, x_std=None, s_std=None, mic_white_noise_db=0):
         self.return_path = return_path
 
         self.manifest_path = manifest_path
@@ -158,6 +158,8 @@ class SpecDataset(data.Dataset):
         self.mic_gain_heuristic = mic_gain_heuristic
         self.x_std = x_std
         self.s_std = s_std
+
+        self.mic_white_noise_db = float(mic_white_noise_db)
 
         if(self.x_std is not None):
             self.x_std = self.x_std.view(1, self.x_std.size(0), 1, 1) # F --> 1xFx1x1   (MxFxTx2)
@@ -248,6 +250,16 @@ class SpecDataset(data.Dataset):
             if(i == 0):
                 tau1 = IR.argmax()
             inputData_single = inputData_single[tau1:]
+            if(self.mic_white_noise_db > 0):
+                mean = 0
+                std = 1
+                noise = np.random.normal(mean, std, size=inputData_single.shape[0])
+                Psignal = np.sum(np.power(inputData_single, 2))
+                Pnoise = np.sum(np.power(noise , 2))
+                Pratio = Psignal/Pnoise
+                scale = np.sqrt(Pratio*np.power(10, -self.mic_white_noise_db/10.0))
+                inputData_single += scale*noise
+
             inputData.append(inputData_single)
             del inputData_single, IR
 
