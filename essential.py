@@ -10,6 +10,29 @@ import scipy.io as sio
 from models.loss import var_time
 
 import pdb
+
+
+def TVN(xr, xi, Tlist, eps=1e-16): # Temporal variance normalization
+    x = torch.sqrt(xr * xr + xi * xi + eps)
+    Tlist_float = Tlist.float().unsqueeze(1).cuda()
+    n = x.ndim
+    if (n == 4):  # NxMxFxT
+        x_mic_mean = x.mean(1)
+        t_mean = x_mic_mean.sum(2) / Tlist_float  # NxF
+        t_sqmean = x_mic_mean.pow(2).sum(2) / Tlist_float  # NxF
+        t_var = t_sqmean - t_mean * t_mean  # NxF
+        t_std = t_var.sqrt().unsqueeze(1).unsqueeze(3)
+
+    elif (n == 3):  # NxFxT
+        t_mean = x.sum(2) / Tlist_float  # NxF
+        t_sqmean = x.pow(2).sum(2) / Tlist_float  # NxF
+        t_var = t_sqmean - t_mean * t_mean  # NxF
+        t_std = t_var.sqrt().unsqueeze(2)
+
+    yr = xr / t_std
+    yi = xi / t_std
+    return yr, yi
+
 def get_gtW_positive(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
 
@@ -101,8 +124,8 @@ def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
     return neighbor_sensitivity
 
 def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1,
-                   Loss2 = None, Eval=None, Eval2=None, loss2_type = '', eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
-                   use_ref_IR=False, use_neighbor_IR=False):
+                   Loss2 = None, Eval=None, Eval2=None, loss2_type = '', eval_type = '', eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
+                   use_ref_IR=False, use_neighbor_IR=False, use_TVN_x=False, use_TVN_s=False):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
     if(mixedSTFT.dim() == 4): # for singleCH experiment
@@ -138,6 +161,14 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     clean_real, clean_imag = cleanSTFT[..., 0], cleanSTFT[..., 1]
     mixed_real, mixed_imag = mixedSTFT[..., 0], mixedSTFT[..., 1]
+
+    if(use_TVN_x):
+        mixed_real, mixed_imag = TVN(mixed_real, mixed_imag, len_STFT_cl)
+        if(use_ref_IR):
+            refmic_real, refmic_imag = TVN(refmic_real, refmic_imag, len_STFT_cl)
+
+    if(use_TVN_s):
+        clean_real, clean_imag = TVN(clean_real, clean_imag, len_STFT_cl)
 
     out_real, out_imag, mask_real, mask_imag = net(mixed_real, mixed_imag)
     if(use_neighbor_IR):
@@ -209,21 +240,28 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     #pdb.set_trace()
     if(Loss2 is not None):
-        if(use_ref_IR):
-            if(loss2_type == 'reference_position_demixing'):
-                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
-            elif(loss2_type == 'refIR_demix_positive'):
-                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
+        if(loss2_type == 'reference_position_demixing'):
+            loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
+        elif(loss2_type == 'refIR_demix_positive'):
+            loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
         else:
-            loss2 = None
+            loss2 = -Loss2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+            #loss2 = None
     else:
         loss2 = None
 
     if(Eval is not None):
-        if(Eval == Loss):
-            eval_metric = -loss
-        else:
+        if(eval_type.find('Wdiff') == -1):
             eval_metric = Eval(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+        else:
+            if(use_ref_IR):
+                if (loss2_type.find('positive') == -1): # depends on loss2 type !!
+                    Wgt_real, Wgt_imag = get_gtW(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                else:
+                    Wgt_real, Wgt_imag = get_gtW_positive(mixed_real, mixed_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                eval_metric = Eval(Wgt_real, Wgt_imag, mask_real, mask_imag, len_STFT_cl)
+            else:
+                eval_metric = None
 
     if(Eval2 is not None):
         if(eval2_type.find('Wdiff') == -1):

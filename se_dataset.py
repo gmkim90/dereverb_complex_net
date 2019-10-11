@@ -163,6 +163,8 @@ class SpecDataset(data.Dataset):
 
         if(self.x_std is not None):
             self.x_std = self.x_std.view(1, self.x_std.size(0), 1, 1) # F --> 1xFx1x1   (MxFxTx2)
+
+        if(self.s_std is not None):
             self.s_std = self.s_std.view(self.s_std.size(0), 1, 1)  # F --> Fx1x1 (FxTx2)
 
         # ver 1. all of wav data is loaded in advance
@@ -323,9 +325,11 @@ class SpecDataset(data.Dataset):
 
         if(self.x_std is not None): # variance normalization on src & mic
             mixedSTFT = mixedSTFT/self.x_std
-            cleanSTFT = cleanSTFT/self.s_std
             if(self.use_ref_IR):
                 refmicSTFT = refmicSTFT/self.x_std
+
+        if(self.s_std is not None):
+            cleanSTFT = cleanSTFT / self.s_std
 
         #if(self.clamp_frame > 0):
         if(self.do_1st_frame_clamp):
