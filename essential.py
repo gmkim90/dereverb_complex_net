@@ -240,13 +240,14 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     #pdb.set_trace()
     if(Loss2 is not None):
-        if(loss2_type == 'reference_position_demixing'):
-            loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
-        elif(loss2_type == 'refIR_demix_positive'):
-            loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
+        if(use_ref_IR):
+            if(loss2_type == 'reference_position_demixing'):
+                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
+            elif(loss2_type == 'refIR_demix_positive'):
+                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
         else:
-            loss2 = -Loss2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
-            #loss2 = None
+            #loss2 = -Loss2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+            loss2 = None
     else:
         loss2 = None
 
