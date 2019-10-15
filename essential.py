@@ -10,7 +10,13 @@ import scipy.io as sio
 from models.loss import var_time
 
 import pdb
+'''
+def inv_TVN(xr, xi, t_std):
+    yr = xr*t_std
+    yi = xi*t_std
 
+    return yr, yi
+'''
 
 def TVN(xr, xi, Tlist, eps=1e-16): # Temporal variance normalization
     x = torch.sqrt(xr * xr + xi * xi + eps)
@@ -31,7 +37,7 @@ def TVN(xr, xi, Tlist, eps=1e-16): # Temporal variance normalization
 
     yr = xr / t_std
     yi = xi / t_std
-    return yr, yi
+    return yr, yi, t_std
 
 def get_gtW_positive(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
@@ -125,7 +131,7 @@ def neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor):
 
 def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode='train', expnum=-1,
                    Loss2 = None, Eval=None, Eval2=None, loss2_type = '', eval_type = '', eval2_type='', fix_len_by_cl='input', count=0, save_activation=False, save_wav=False, istft=None,
-                   use_ref_IR=False, use_neighbor_IR=False, use_TVN_x=False, use_TVN_s=False):
+                   use_ref_IR=False,  use_TVN_x=False, use_TVN_s=False, share_W_tar_ref=True):
 
     mixedSTFT, cleanSTFT, len_STFT_cl = input[0].cuda(), input[1].cuda(), input[2]
     if(mixedSTFT.dim() == 4): # for singleCH experiment
@@ -134,14 +140,6 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     if(use_ref_IR):
         refmicSTFT = input[3].cuda()
-    elif(use_neighbor_IR):
-        nbmicSTFT = input[3].cuda()
-        nbmicSTFT = nbmicSTFT.view(-1, nCH, F, nbmicSTFT.size(3), 2)
-
-    #mixedSTFT = mixedSTFT[:, :, :, 3:5, :] # select t=4, 5
-    #cleanSTFT = cleanSTFT[:, :, 3:5, :] # select t=4, 5
-    #refmicSTFT = refmicSTFT[:, :, :, 3:5, :] # select t=4, 5
-
 
 
     if(stride_product > 0 and not Tf % stride_product == 1):
@@ -150,29 +148,22 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         cleanSTFT = Func.pad(cleanSTFT, (0, 0, 0, nPad_time, 0, 0))
         if(use_ref_IR):
             refmicSTFT = Func.pad(refmicSTFT, (0, 0, 0, nPad_time, 0, 0))
-        if(use_neighbor_IR):
-            nbmicSTFT = Func.pad(nbmicSTFT, (0, 0, 0, nPad_time, 0, 0))
 
     if(use_ref_IR):
         refmic_real, refmic_imag = refmicSTFT[..., 0], refmicSTFT[..., 1]
-
-    if(use_neighbor_IR):
-        nbmic_real, nbmic_imag = nbmicSTFT[..., 0], nbmicSTFT[..., 1]
 
     clean_real, clean_imag = cleanSTFT[..., 0], cleanSTFT[..., 1]
     mixed_real, mixed_imag = mixedSTFT[..., 0], mixedSTFT[..., 1]
 
     if(use_TVN_x):
-        mixed_real, mixed_imag = TVN(mixed_real, mixed_imag, len_STFT_cl)
+        mixed_real, mixed_imag, mixed_std = TVN(mixed_real, mixed_imag, len_STFT_cl)
         if(use_ref_IR):
-            refmic_real, refmic_imag = TVN(refmic_real, refmic_imag, len_STFT_cl)
+            refmic_real, refmic_imag, refmic_std = TVN(refmic_real, refmic_imag, len_STFT_cl)
 
     if(use_TVN_s):
-        clean_real, clean_imag = TVN(clean_real, clean_imag, len_STFT_cl)
+        clean_real, clean_imag, clean_std = TVN(clean_real, clean_imag, len_STFT_cl)
 
     out_real, out_imag, mask_real, mask_imag = net(mixed_real, mixed_imag)
-    if(use_neighbor_IR):
-        out_nb_real, out_nb_imag, mask_nb_real, mask_nb_imag = net(nbmic_real, nbmic_imag)
 
     Tmax_cl = clean_real.size(-1)
     Tmax_rev = out_real.size(-1)
@@ -190,9 +181,6 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
         if(use_ref_IR):
             refmic_real = refmic_real[:, :, :, :minT]
             refmic_imag = refmic_imag[:, :, :, :minT]
-        if(use_neighbor_IR):
-            out_nb_real = out_nb_real[:, :, :minT]
-            out_nb_imag = out_nb_imag[:, :, :minT]
 
     for i, l in enumerate(len_STFT_cl):  # zero padding to output audio
         out_real[i, :, min(l, minT):] = 0
@@ -229,22 +217,20 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
             out_audio[i, l:] = 0
         loss = -Loss(clean_time, out_audio)
 
-    if(use_neighbor_IR):
-        # TODO: define clean_nb_real, clean_nb_imag, len_STFT_nb_cl
-        loss_neighbor = -Loss(clean_nb_real, clean_nb_imag, out_nb_real, out_nb_imag, len_STFT_nb_cl)
-
-        # TODO: save nNeighbor in se_dataset
-        # TODO: make neighbor_sensitivity function
-        # TODO: return loss_sensitivity loss & include at the training
-        loss_sensitivity = neighbor_sensitivitiy(loss, loss_neighbor, nNeighbor)
-
-    #pdb.set_trace()
     if(Loss2 is not None):
         if(use_ref_IR):
-            if(loss2_type == 'reference_position_demixing'):
-                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
-            elif(loss2_type == 'refIR_demix_positive'):
-                loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
+            if(share_W_tar_ref):
+                if(loss2_type == 'reference_position_demixing'):
+                    loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, len_STFT_cl)
+                elif(loss2_type == 'refIR_demix_positive'):
+                    loss2 = -Loss2(refmic_real, refmic_imag, mask_real, mask_imag, clean_real, clean_imag, len_STFT_cl)
+            else:
+                outref_real, outref_imag, mask_ref_real, mask_ref_imag = net(refmic_real, refmic_imag)
+                if(loss2_type == 'reference_position_demixing'): # negative refIR
+                    loss2 = -Loss(clean_real*0, clean_imag*0, outref_real, outref_imag, len_STFT_cl)  # use Loss instead of Loss2 (구현 편의성)
+                elif (loss2_type == 'refIR_demix_positive'): # positive refIR
+                    loss2 = -Loss(clean_real, clean_imag, outref_real, outref_imag, len_STFT_cl) # use Loss instead of Loss2 (구현 편의성)
+
         else:
             #loss2 = -Loss2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
             loss2 = None
@@ -253,7 +239,10 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     if(Eval is not None):
         if(eval_type.find('Wdiff') == -1):
-            eval_metric = Eval(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+            if(use_TVN_s): # do not use normalization for evaluation
+                eval_metric = Eval(clean_real*clean_std, clean_imag*clean_std, out_real*clean_std, out_imag*clean_std, len_STFT_cl)
+            else:
+                eval_metric = Eval(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
         else:
             if(use_ref_IR):
                 if (loss2_type.find('positive') == -1): # depends on loss2 type !!
@@ -266,7 +255,10 @@ def forward_common(input, net, Loss, data_type, loss_type, stride_product, mode=
 
     if(Eval2 is not None):
         if(eval2_type.find('Wdiff') == -1):
-            eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
+            if(use_TVN_s): # do not use normalization for evaluation
+                eval2_metric = Eval(clean_real*clean_std, clean_imag*clean_std, out_real*clean_std, out_imag*clean_std, len_STFT_cl)
+            else:
+                eval2_metric = Eval2(clean_real, clean_imag, out_real, out_imag, len_STFT_cl)
         else:
             if(use_ref_IR):
                 if (loss2_type.find('positive') == -1): # depends on loss2 type !!

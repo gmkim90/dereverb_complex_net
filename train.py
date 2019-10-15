@@ -30,7 +30,7 @@ def main(args):
     #mem_debug_file = open('mem_debug_file_' + str(args.expnum) + '.txt', 'w')
     #tracemalloc.start()
     assert (args.expnum >= 1)
-    assert(not (args.use_neighbor_IR and args.use_ref_IR)), 'to use ref & neighbor IR simultaneously, need dynamic data index function'
+    #assert(not (args.use_neighbor_IR and args.use_ref_IR)), 'to use ref & neighbor IR simultaneously, need dynamic data index function'
 
     if (args.mic_sampling == 'ref_manual'):
         args.subset1 = args.subset1.split(',')  # string to list
@@ -134,7 +134,7 @@ def main(args):
                                     start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     do_1st_frame_clamp=args.do_1st_frame_clamp, ref_mic_direct_td_subtract=args.ref_mic_direct_td_subtract,
                                     interval_cm=args.interval_cm_tr, use_audio=args.save_wav,
-                                    use_ref_IR=args.use_ref_IR, use_neighbor_IR = args.use_neighbor_IR, mic_gain_heuristic=args.mic_gain_heuristic,
+                                    use_ref_IR=args.use_ref_IR,  mic_gain_heuristic=args.mic_gain_heuristic,
                                     x_std=x_std, s_std=s_std, mic_white_noise_db=args.mic_white_noise_db)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
@@ -330,8 +330,8 @@ def main(args):
                                        Eval=Eval, Eval2=Eval2,
                                        loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
-                                        Loss2 = Loss2, use_ref_IR=args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR,
-                                       use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s)
+                                        Loss2 = Loss2, use_ref_IR=args.use_ref_IR,
+                                       use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -354,8 +354,8 @@ def main(args):
                                        Eval=Eval, Eval2=Eval2,
                                        loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
                                        fix_len_by_cl=args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
-                                        Loss2 = Loss2, use_ref_IR = args.use_ref_IR, use_neighbor_IR=args.use_neighbor_IR,
-                                       use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s)
+                                        Loss2 = Loss2, use_ref_IR = args.use_ref_IR,
+                                       use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -424,7 +424,7 @@ def main(args):
                                      stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                      eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
-                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s)  # do not use Loss2 for evaluate
+                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref)  # do not use Loss2 for evaluate
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
@@ -432,7 +432,7 @@ def main(args):
                                      stride_product_time, logger, epoch,  Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                     eval_type = args.eval_type, eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
-                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s) # do not use Loss2 for evaluate
+                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref) # do not use Loss2 for evaluate
                         #utils.CPUmemDebug('after eval (val)', mem_debug_file)
                         # Test
                         if (len(args.te1_manifest) > 0):
@@ -440,7 +440,7 @@ def main(args):
                                      stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl, save_wav=args.save_wav, istft=istft,
                                      eval_type=args.eval_type,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
-                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s) # do not use Loss2 for evaluate
+                                     use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref) # do not use Loss2 for evaluate
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
@@ -448,7 +448,7 @@ def main(args):
                                      stride_product_time, logger, epoch, Eval, Eval2, Loss2,
                                      args.fix_len_by_cl,save_wav=args.save_wav, istft=istft,
                             eval_type = args.eval_type, eval2_type=args.eval2_type, loss2_type=args.loss2_type,
-                                     use_ref_IR=args.use_ref_IR_te, use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s) # do not use Loss2 for evaluate
+                                     use_ref_IR=args.use_ref_IR_te, use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s, share_W_tar_ref=args.share_W_tar_ref) # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -517,8 +517,8 @@ def main(args):
                                                                                 loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
                                                                          fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                                          save_activation=args.save_activation, use_ref_IR=args.use_ref_IR,
-                                                                                use_TVN_x=args.use_TVN_x,
-                                                                                use_TVN_s=args.use_TVN_s)
+                                                                                use_TVN_x=args.use_TVN_x,use_TVN_s=args.use_TVN_s
+                                                                                , share_W_tar_ref=args.share_W_tar_ref)
                         reverb_paths = []
                         for n in range(input[0].size(0)):
                             reverb_paths.append(input[target_IR_path_idx][n])
@@ -553,8 +553,8 @@ def main(args):
                                                             loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
                                                             fix_len_by_cl=args.fix_len_by_cl, count=count,
                                                            save_activation=args.save_activation, use_ref_IR=args.use_ref_IR,
-                                                                            use_TVN_x=args.use_TVN_x,
-                                                                            use_TVN_s=args.use_TVN_s) # do not use Loss2 & ref_IR in valid
+                                                            use_TVN_x=args.use_TVN_x, use_TVN_s=args.use_TVN_s
+                                                                            , share_W_tar_ref=args.share_W_tar_ref) # do not use Loss2 & ref_IR in valid
                     count = count + 1
                     reverb_paths = []
                     for n in range(input[0].size(0)):
@@ -580,7 +580,7 @@ def main(args):
 def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
              logger, epoch,  Eval, Eval2, Loss2, fix_len_by_cl,
              eval_type = '', eval2_type='', loss2_type ='',
-             save_wav=False, istft=None, use_ref_IR=False, use_TVN_x=False, use_TVN_s=False):
+             save_wav=False, istft=None, use_ref_IR=False, use_TVN_x=False, use_TVN_s=False, share_W_tar_ref=False):
     count = 0
     loss_total = 0
     loss2_total = 0
@@ -597,7 +597,8 @@ def evaluate(expnum, loader, net, Loss, data_type, loss_type, stride_product,
                                                             Eval=Eval, Eval2=Eval2, Loss2=Loss2,
                                                                     eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
                                                              fix_len_by_cl=fix_len_by_cl, save_wav=save_wav, istft=istft,
-                                                                    use_ref_IR=use_ref_IR, use_TVN_x=use_TVN_x, use_TVN_s=use_TVN_s) # do not use Loss2 & ref_IR for eval
+                                                                    use_ref_IR=use_ref_IR, use_TVN_x=use_TVN_x, use_TVN_s=use_TVN_s,
+                                                                    share_W_tar_ref = share_W_tar_ref) # do not use Loss2 & ref_IR for eval
             save_wav = False # MAKE save_wav activate only once
 
             loss_mean = torch.mean(loss)

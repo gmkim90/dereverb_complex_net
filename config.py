@@ -108,7 +108,7 @@ parser.add_argument('--use_x_std', default=True, type=str2bool) # corpus-level V
 parser.add_argument('--use_TVN_x', default=False, type=str2bool) # utt-level VN
 parser.add_argument('--use_TVN_s', default=False, type=str2bool) # utt-level VN
 
-
+parser.add_argument('--share_W_tar_ref', default=True, type=str2bool)
 
 parser.add_argument('--mic_white_noise_db', default=0, type=float)
 
