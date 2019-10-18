@@ -130,6 +130,7 @@ class Unet(nn.Module):
         self.ds_rate = ds_rate
         self.nMic = nMic
         self.w_init_std = w_init_std # if this is 0, use complex rayleigh init
+        self.skip_dim = 1
 
         if(self.ds_rate > 1): # require downsample of mic ratio
             assert(math.log2(self.ds_rate) % 1 == 0)
@@ -177,14 +178,12 @@ class Unet(nn.Module):
 
             cfg_additional_layer = [nCH_in, nCH_out, [ksz_freq, ksz_time], [upsample_freq, upsample_time], [pad_freq, pad_time] ]# [32, 32, [5, 3], [2, 1], [2, 1]]
             for r in range(int(math.log2(self.ds_rate))):
-                self.decoders_additional.append(Decoder(cfg_additional_layer, cfg['leaky_slope'], use_bn=use_bn))
+                self.decoders_additional.append(Decoder(cfg_additional_layer, cfg['leaky_slope']))
 
         self.last_decoder = dcnn.ComplexConvWrapper(nn.ConvTranspose2d, self.w_init_std, *cfg['decoders'][-1], bias=True)
 
 
     def forward(self, xr, xi):
-        input_real, input_imag = xr, xi
-
         skips = list()
 
         if(not self.input_type == 'complex'):

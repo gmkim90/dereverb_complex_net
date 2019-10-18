@@ -71,14 +71,14 @@ def main(args):
     if(len(args.te1_manifest) > 0):
         if (args.te1_manifest.find('data_sorted') == -1):
             args.te1_manifest = 'data_sorted/' + args.te1_manifest
-        test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic, load_IR=args.load_IR,
+        test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic,
                                     src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
         if (args.te2_manifest.find('data_sorted') == -1):
             args.te2_manifest = 'data_sorted/' + args.te2_manifest
-        test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic, load_IR=args.load_IR, 
+        test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic,
                                     src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
@@ -176,9 +176,9 @@ def main(args):
 
                 if(not count % args.log_iter == 0):
                     loss, loss2, eval_metric, eval2_metric = \
-                        forward_common(input, net, Loss, args.loss_type,
+                        forward_common(input, net, Loss,
                                        Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                       loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
                                          use_ref_IR=args.use_ref_IR)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
@@ -199,7 +199,7 @@ def main(args):
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss,
                                        Loss2=Loss2, Eval=Eval, Eval2=Eval2,
-                                       loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
+                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
                                        use_ref_IR = args.use_ref_IR)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
@@ -265,27 +265,30 @@ def main(args):
 
                         # Training subset
                         if (len(args.trsub_manifest) > 0):
-                            evaluate(trsub_loader, net, Loss,
+                            evaluate(trsub_loader, net, Loss, 'trsub',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type = args.loss_type, eval_type = args.eval_type
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
-                            evaluate(val_loader, net, Loss,
+                            evaluate(val_loader, net, Loss, 'val',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type=args.loss_type, eval_type = args.eval_type
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
 
                         # Test
                         if (len(args.te1_manifest) > 0):
-                            evaluate(test1_loader, net, Loss,
+                            evaluate(test1_loader, net, Loss, 'te1',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
-                            evaluate(test2_loader, net, Loss,
+                            evaluate(test2_loader, net, Loss, 'te2',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -299,11 +302,9 @@ def main(args):
             torch.cuda.empty_cache()
         logger.close()
 
-
-
 def evaluate(loader, net, Loss, data_type,
              logger, epoch,  Eval, Eval2, Loss2,
-             eval_type = '', eval2_type='', loss2_type ='',
+             eval_type = '', eval2_type='', loss_type = '', loss2_type ='',
              use_ref_IR=False):
     count = 0
     loss_total = 0
@@ -311,17 +312,16 @@ def evaluate(loader, net, Loss, data_type,
     eval_metric_total = 0
     eval2_metric_total = 0
 
-    # data_bar = tqdm(loader)
-    # for input in data_bar:
     with torch.no_grad():
         for _, input in enumerate(tqdm(loader)):
             count += 1
             loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2,
-                                                                    eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
+                                                                    loss_type = loss_type, eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
                                                                     use_ref_IR=use_ref_IR) # do not use Loss2 & ref_IR for eval
 
-            loss_mean = torch.mean(loss)
-            loss_total += loss_mean.item()
+            if(loss is not None):
+                loss_mean = torch.mean(loss)
+                loss_total += loss_mean.item()
             if(loss2 is not None):
                 loss2_mean = torch.mean(loss2)
                 loss2_total += loss2_mean.item()

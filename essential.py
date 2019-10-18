@@ -7,7 +7,6 @@ import torch.nn.functional as Func
 import soundfile as sf
 import math
 import scipy.io as sio
-from models.loss import var_time
 
 import pdb
 
@@ -75,7 +74,7 @@ def get_gtW_negative(Ht_real, Ht_imag, Hr_real, Hr_imag, eps = 1e-16):
 
 
 def forward_common(input, net, Loss,
-                   Loss2 = None, Eval=None, Eval2=None, loss2_type = '', eval_type = '', eval2_type='', 
+                   Loss2 = None, Eval=None, Eval2=None, loss_type = '', loss2_type = '', eval_type = '', eval2_type='',
                    use_ref_IR=False):
 
     tarH = input[0]
@@ -88,12 +87,15 @@ def forward_common(input, net, Loss,
 
     West_real, West_imag = net(tarH_real, tarH_imag) # for now, refH is not used to predict W
 
-    if(loss_type.find('positive') == -1):
-        Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
-    else:
-        Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+    if(use_ref_IR):
+        if(loss_type.find('positive') == -1):
+            Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+        else:
+            Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
 
-    loss = -Loss(Wgt_real, Wgt_imag, West_real, West_imag)
+        loss = -Loss(Wgt_real, Wgt_imag, West_real, West_imag)
+    else:
+        loss = None
 
 
     if(Loss2 is not None):
@@ -102,20 +104,26 @@ def forward_common(input, net, Loss,
         loss2 = None
 
     if(Eval is not None):
-        if(eval_type.find('positive') == -1):
-            Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+        if(use_ref_IR):
+            if(eval_type.find('positive') == -1):
+                Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+            else:
+                Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+            eval_metric = Eval(Wgt_real, Wgt_imag, West_real, West_imag)
         else:
-            Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
-        eval_metric = Eval(Wgt_real, Wgt_imag, West_real, West_imag)
+            eval_metric = None
     else:
         eval_metric = None
 
     if(Eval2 is not None):
-        if(eval2_type.find('positive') == -1):
-            Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+        if(use_ref_IR):
+            if(eval2_type.find('positive') == -1):
+                Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+            else:
+                Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+            eval2_metric = Eval2(Wgt_real, Wgt_imag, West_real, West_imag)
         else:
-            Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
-        eval2_metric = Eval2(Wgt_real, Wgt_imag, West_real, West_imag)
+            eval2_metric = None
     else:
         eval2_metric = None
 

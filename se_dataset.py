@@ -138,7 +138,7 @@ class SpecDataset(data.Dataset):
         if(self.use_ref_IR):
             refIR_list = []
             for i in range(self.nMic):
-                refIR_path = self.dataset['ref_IR'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
+                refIR_path = self.dataset['refIR'][idx] + '_ch' + str(selected_mics[i]) + '.npy'
                 refIR = np.squeeze(np.load(refIR_path))
                 refIR_list.append(refIR)
             refIR_nMic = torch.FloatTensor(np.stack(refIR_list)).squeeze()
@@ -173,13 +173,14 @@ class SpecDataset(data.Dataset):
         tarIR_nMic = input_zips.__next__()
         tarIR_batch = self.list_to_real_tensor(tarIR_nMic).cuda()      # cuda before batched fft
         tarH_batch = torch.fft(tarIR_batch, signal_ndim=2) # NxMxT --> NxMxF (T = F)
-        tarH_batch = tarH_batch[:, :, :tarH_batch.size(2) / 2 + 1, :]  # keep only half
+        #pdb.set_trace()
+        tarH_batch = tarH_batch[:, :, :int(tarH_batch.size(2)/2 + 1), :]  # keep only half
         tarH_batch = tarH_batch.unsqueeze(3) # NxMxFx2 --> NxMxFx1x2 # make time dimension for using temporal conv of unet
         if(self.use_ref_IR):
             refIR_nMic = input_zips.__next__()
             refIR_batch = self.list_to_real_tensor(refIR_nMic).cuda()  # cuda before batched fft
             refH_batch = torch.fft(refIR_batch, signal_ndim=2) # NxMxTx2 --> NxMxFx2 (T = F)
-            refH_batch = refH_batch[:, :, :refH_batch.size(2)/2+1, :] # keep only half
+            refH_batch = refH_batch[:, :, :int(refH_batch.size(2)/2+1), :] # keep only half
             refH_batch = refH_batch.unsqueeze(3) # NxMxFx2 --> NxMxFx1x2 # make time dimension for using temporal conv of unet
 
         batch = [tarH_batch]
