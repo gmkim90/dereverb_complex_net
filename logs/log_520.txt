@@ -1,0 +1,66 @@
+train, epoch: 0, loss: 9317.2724609375
+train, epoch: 0, eval_metric: -0.007104321848601103
+train, epoch: 0, loss: (minibatch): 105925.4349609375
+train, epoch: 0, loss2: (minibatch): 0.0
+train, epoch: 0, eval_metric: (minibatch): -0.01220014221034944
+train, epoch: 0, eval2_metric: (minibatch): 0.0
+train, epoch: 0, loss: 106207.359375
+train, epoch: 0, eval_metric: 0.0074255759827792645
+train, epoch: 0, loss: (minibatch): 96470.5181640625
+train, epoch: 0, loss2: (minibatch): 0.0
+train, epoch: 0, eval_metric: (minibatch): 0.00155111969797872
+train, epoch: 0, eval2_metric: (minibatch): 0.0
+val, epoch: 0, loss: 0.0
+val, epoch: 0, loss2: 0.0
+val, epoch: 0, eval_metric: 0.0
+val, epoch: 0, eval2_metric: 0.0
+te1, epoch: 0, loss: 0.0
+te1, epoch: 0, loss2: 0.0
+te1, epoch: 0, eval_metric: 0.0
+te1, epoch: 0, eval2_metric: 0.0
+memory after gc.collect()
+memory GB:2.434368133544922
+train, epoch: 1, loss: 107547.359375
+train, epoch: 1, eval_metric: 0.026037435978651047
+train, epoch: 1, loss: (minibatch): 124837.3505859375
+train, epoch: 1, loss2: (minibatch): 0.0
+train, epoch: 1, eval_metric: (minibatch): 0.021418294869363308
+train, epoch: 1, eval2_metric: (minibatch): 0.0
+train, epoch: 1, loss: 107846.390625
+train, epoch: 1, eval_metric: 0.04449962452054024
+train, epoch: 1, loss: (minibatch): 86673.17744140625
+train, epoch: 1, loss2: (minibatch): 0.0
+train, epoch: 1, eval_metric: (minibatch): 0.03691848106682301
+train, epoch: 1, eval2_metric: (minibatch): 0.0
+val, epoch: 1, loss: 0.0
+val, epoch: 1, loss2: 0.0
+val, epoch: 1, eval_metric: 0.0
+val, epoch: 1, eval2_metric: 0.0
+te1, epoch: 1, loss: 0.0
+te1, epoch: 1, loss2: 0.0
+te1, epoch: 1, eval_metric: 0.0
+te1, epoch: 1, eval2_metric: 0.0
+memory after gc.collect()
+memory GB:2.439350128173828
+train, epoch: 1, loss: 12919.919921875
+train, epoch: 1, eval_metric: 0.07255975902080536
+train, epoch: 1, loss: (minibatch): 86954.7455078125
+train, epoch: 1, loss2: (minibatch): 0.0
+train, epoch: 1, eval_metric: (minibatch): 0.06478802487254143
+train, epoch: 1, eval2_metric: (minibatch): 0.0
+train, epoch: 1, loss: 106455.7890625
+train, epoch: 1, eval_metric: 0.08475669473409653
+train, epoch: 1, loss: (minibatch): 114638.9705078125
+train, epoch: 1, loss2: (minibatch): 0.0
+train, epoch: 1, eval_metric: (minibatch): 0.0845048449933529
+train, epoch: 1, eval2_metric: (minibatch): 0.0
+val, epoch: 1, loss: 0.0
+val, epoch: 1, loss2: 0.0
+val, epoch: 1, eval_metric: 0.0
+val, epoch: 1, eval2_metric: 0.0
+te1, epoch: 1, loss: 0.0
+te1, epoch: 1, loss2: 0.0
+te1, epoch: 1, eval_metric: 0.0
+te1, epoch: 1, eval2_metric: 0.0
+memory after gc.collect()
+memory GB:2.4355926513671875
