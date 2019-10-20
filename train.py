@@ -117,6 +117,10 @@ def main(args):
         if (args.eval_iter == 0 or args.eval_iter > len(train_loader)):
             args.eval_iter = len(train_loader)
 
+        if (args.log_iter == 0 or args.log_iter > len(train_loader)):
+            args.log_iter = len(train_loader)
+
+
         if(args.start_epoch > 0):
             print('training starts from epoch '+ str(args.start_epoch))
 
