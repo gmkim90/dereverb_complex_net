@@ -9,7 +9,7 @@ from tqdm import tqdm
 import gc
 
 import utils
-from utils import get_stride_product_time, count_parameters
+from utils import get_stride_product_time, count_parameters, save_input_mat_for_debug
 
 import models.loss as losses
 
@@ -117,6 +117,10 @@ def main(args):
         if (args.eval_iter == 0 or args.eval_iter > len(train_loader)):
             args.eval_iter = len(train_loader)
 
+        if (args.log_iter == 0 or args.log_iter > len(train_loader)):
+            args.log_iter = len(train_loader)
+
+
         if(args.start_epoch > 0):
             print('training starts from epoch '+ str(args.start_epoch))
 
@@ -196,6 +200,8 @@ def main(args):
                         eval2_metric_mean = torch.mean(eval2_metric).item()
                         eval2_metric_mb += float(eval2_metric_mean)
                 else:
+                    if(args.save_input_mat_for_debug):
+                        save_input_mat_for_debug(input, count)
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss,
                                        Loss2=Loss2, Eval=Eval, Eval2=Eval2,

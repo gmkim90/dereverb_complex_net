@@ -148,6 +148,9 @@ class SpecDataset(data.Dataset):
         if(self.use_ref_IR):
             return_list.append(refIR_nMic) # time domain signal for now, fft will be used at collate()
 
+        if(self.return_path):
+            return_list.append(self.dataset['tarIR'][idx])
+
         return return_list
 
     def __len__(self):
@@ -160,7 +163,7 @@ class SpecDataset(data.Dataset):
             M = inputs[0].shape[0]
             shape = (N, M, T, 2) # 2 = real/imag for torch.fft()
         elif(inputs[0].ndimension() == 1): # singleCH data (clean)
-            shape = (M, T, 2) # 2 = real/imag for torch.fft()
+            shape = (N, T, 2) # 2 = real/imag for torch.fft()
         tensor = torch.FloatTensor(*shape).zero_()
 
         for e, inp in enumerate(inputs):
@@ -171,20 +174,32 @@ class SpecDataset(data.Dataset):
         input_zips = zip(*inputs)
         
         tarIR_nMic = input_zips.__next__()
+        N = len(tarIR_nMic)
         tarIR_batch = self.list_to_real_tensor(tarIR_nMic).cuda()      # cuda before batched fft
-        tarH_batch = torch.fft(tarIR_batch, signal_ndim=2) # NxMxT --> NxMxF (T = F)
+        #tarH_batch = torch.fft(tarIR_batch, signal_ndim=2) # NxMxTx2 --> NxMxFx2 (T = F) --> 2D fft
+
+        tarIR_batch = tarIR_batch.view(tarIR_batch.size(0)*tarIR_batch.size(1), tarIR_batch.size(2), tarIR_batch.size(3))
+        tarH_batch = torch.fft(tarIR_batch, signal_ndim=1) # NMxTx2 --> NMxFx2 (T = F) --> 1D fft
+        tarH_batch = tarH_batch.view(N, -1, tarH_batch.size(1), tarH_batch.size(2))
         #pdb.set_trace()
         tarH_batch = tarH_batch[:, :, :int(tarH_batch.size(2)/2 + 1), :]  # keep only half
         tarH_batch = tarH_batch.unsqueeze(3) # NxMxFx2 --> NxMxFx1x2 # make time dimension for using temporal conv of unet
         if(self.use_ref_IR):
             refIR_nMic = input_zips.__next__()
             refIR_batch = self.list_to_real_tensor(refIR_nMic).cuda()  # cuda before batched fft
-            refH_batch = torch.fft(refIR_batch, signal_ndim=2) # NxMxTx2 --> NxMxFx2 (T = F)
+            #refH_batch = torch.fft(refIR_batch, signal_ndim=2) # NxMxTx2 --> NxMxFx2 (T = F) --> 2D fft
+            refIR_batch = refIR_batch.view(refIR_batch.size(0)*refIR_batch.size(1), refIR_batch.size(2), refIR_batch.size(3))
+            refH_batch = torch.fft(refIR_batch, signal_ndim=1) # NxMxTx2 --> NxMxFx2 (T = F) --> 1D fft
+            refH_batch = refH_batch.view(N, -1, refH_batch.size(1), refH_batch.size(2))
             refH_batch = refH_batch[:, :, :int(refH_batch.size(2)/2+1), :] # keep only half
             refH_batch = refH_batch.unsqueeze(3) # NxMxFx2 --> NxMxFx1x2 # make time dimension for using temporal conv of unet
 
         batch = [tarH_batch]
         if(self.use_ref_IR):
             batch.append(refH_batch)
+
+        if(self.return_path):
+            reverb_path = input_zips.__next__()
+            batch.append(reverb_path)
 
         return batch

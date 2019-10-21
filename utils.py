@@ -5,8 +5,12 @@ import shutil
 import gc
 import psutil
 import numpy as np
-
+import scipy.io as sio
 import torch
+
+def save_input_mat_for_debug(input, count):
+    sio.savemat('input_' + str(count) + '.mat', {'tarH':input[0].cpu().numpy(), 'refH':input[1].cpu().numpy(), 'path':input[2]})
+    print('input_' + str(count) + '.mat saved')
 
 def get_stride_product_time(param_cfg):
     nLayer = len(param_cfg)
