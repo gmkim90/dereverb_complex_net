@@ -88,6 +88,9 @@ parser.add_argument('--nGenerate', default=100000000, type=int, help = 'how many
 parser.add_argument('--use_ISTFT', default=False, type=str2bool)
 parser.add_argument('--return_path', default=False, type=str2bool)
 
+parser.add_argument('--save_input_mat_for_debug', default=False, type=str2bool)
+
+
 parser.add_argument('--REV_VIS', default=False, type=str2bool, help = 'REVERB-Visualization scenario')
 parser.add_argument('--hop_length', default=0, type=int, help = 'if 0, automatically selected as win_size/2')
 

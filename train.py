@@ -9,7 +9,7 @@ from tqdm import tqdm
 import gc
 
 import utils
-from utils import get_stride_product_time, count_parameters
+from utils import get_stride_product_time, count_parameters, save_input_mat_for_debug
 
 import models.loss as losses
 
@@ -200,6 +200,8 @@ def main(args):
                         eval2_metric_mean = torch.mean(eval2_metric).item()
                         eval2_metric_mb += float(eval2_metric_mean)
                 else:
+                    if(args.save_input_mat_for_debug):
+                        save_input_mat_for_debug(input, count)
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss,
                                        Loss2=Loss2, Eval=Eval, Eval2=Eval2,
