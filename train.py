@@ -107,6 +107,8 @@ def main(args):
 
     # Network
     from models.unet import Unet
+    if (args.model_json.find('models') == -1):
+        args.model_json = 'models/' + args.model_json
     json_path = os.path.join(args.model_json)
     params = utils.Params(json_path)
     net = Unet(params.model, nMic = args.nMic,
