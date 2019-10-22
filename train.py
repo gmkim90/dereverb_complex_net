@@ -86,22 +86,34 @@ def main(args):
 
     # Set loss type
     if(len(args.loss_type) > 0):
-        Loss = getattr(losses, args.loss_type)
+        if(args.loss_type.find('positive') == -1):
+            Loss = getattr(losses, args.loss_type)
+        else:
+            Loss = getattr(losses, args.loss_type.replace('_positive', ''))
     else:
         Loss = None
 
     if(len(args.loss2_type) > 0):
-        Loss2 = getattr(losses, args.loss2_type)
+        if(args.loss2_type.find('positive') == -1):
+            Loss2 = getattr(losses, args.loss2_type)
+        else:
+            Loss2 = getattr(losses, args.loss2_type.replace('_positive', ''))
     else:
         Loss2 = None
 
     if(len(args.eval_type) > 0):
-        Eval = getattr(losses, args.eval_type)
+        if(args.eval_type.find('positive') == -1):
+            Eval = getattr(losses, args.eval_type)
+        else:
+            Eval = getattr(losses, args.eval_type.replace('_positive', ''))
     else:
         Eval = None
 
     if (len(args.eval2_type) > 0):
-        Eval2 = getattr(losses, args.eval2_type)
+        if(args.eval2_type.find('positive') == -1):
+            Eval2 = getattr(losses, args.eval2_type)
+        else:
+            Eval2 = getattr(losses, args.eval2_type.replace('_positive', ''))
     else:
         Eval2 = None
 
@@ -309,6 +321,103 @@ def main(args):
                        'checkpoint/' + str(args.expnum) + '-model.pth.tar')
             torch.cuda.empty_cache()
         logger.close()
+
+    elif(args.mode == 'generate'):
+        print('load pretrained model')
+
+        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar', map_location=lambda storage, loc: storage)
+        net.load_state_dict(checkpoint['model'])
+        net.cuda()
+
+        del checkpoint
+        torch.cuda.empty_cache()
+
+        with torch.no_grad():
+            if (len(args.tr_manifest) > 0): # tr
+                count = 0
+                loss_total = 0
+                loss2_total = 0
+                eval_metric_total = 0
+                eval2_metric_total = 0
+                for _, input in enumerate(tqdm(train_loader)):
+                    count = count + 1
+
+                    loss, loss2, eval_metric, eval2_metric = \
+                        forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                         use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, count=count, expnum=args.expnum)
+
+                    metrics_save = {}
+                    if(loss is not None):
+                        loss_total += loss.mean().item()
+                        metrics_save['loss'] = loss.data.cpu().numpy()
+                    if(loss2 is not None):
+                        loss2_total += loss2.mean().item()
+                        metrics_save['loss2'] = loss2.data.cpu().numpy()
+                    if(eval_metric is not None):
+                        eval_metric_total += eval_metric.mean().item()
+                        metrics_save['eval_metric'] = eval_metric.data.cpu().numpy()
+                    if(eval2_metric is not None):
+                        eval2_metric_total += eval2_metric.mean().item()
+                        metrics_save['eval2_metric'] = eval2_metric.data.cpu().numpy()
+
+                    reverb_paths = []
+                    for n in range(input[0].size(0)):
+                        reverb_paths.append(input[2][n])
+
+                    specs_path = 'specs/' + str(args.expnum) + '/metric_tr_' + str(count) + '.mat'
+
+                    sio.savemat(specs_path, metrics_save)
+
+                print('tr loss = ' + str(loss_total))
+                print('tr loss2 = ' + str(loss2_total))
+                print('tr eval = ' + str(eval_metric_total))
+                print('tr eval2 = ' + str(eval2_metric_total))
+            else:
+                print("NO TRAINING MANIFEST")
+
+            if (len(args.val_manifest) > 0): # tr
+                count = 0
+                loss_total = 0
+                loss2_total = 0
+                eval_metric_total = 0
+                eval2_metric_total = 0
+                for _, input in enumerate(tqdm(val_loader)):
+                    count = count + 1
+
+                    loss, loss2, eval_metric, eval2_metric = \
+                        forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                         use_ref_IR=args.use_ref_IR_te, save_activation=args.save_activation, count=count, expnum=args.expnum)
+
+                    metrics_save = {}
+                    if(loss is not None):
+                        loss_total += loss.mean().item()
+                        metrics_save['loss'] = loss.data.cpu().numpy()
+                    if(loss2 is not None):
+                        loss2_total += loss2.mean().item()
+                        metrics_save['loss2'] = loss2.data.cpu().numpy()
+                    if(eval_metric is not None):
+                        eval_metric_total += eval_metric.mean().item()
+                        metrics_save['eval_metric'] = eval_metric.data.cpu().numpy()
+                    if(eval2_metric is not None):
+                        eval2_metric_total += eval2_metric.mean().item()
+                        metrics_save['eval2_metric'] = eval2_metric.data.cpu().numpy()
+
+                    reverb_paths = []
+                    for n in range(input[0].size(0)):
+                        reverb_paths.append(input[2][n])
+
+                    specs_path = 'specs/' + str(args.expnum) + '/metric_val_' + str(count) + '.mat'
+
+                    sio.savemat(specs_path, metrics_save)
+
+                print('val loss = ' + str(loss_total))
+                print('val loss2 = ' + str(loss2_total))
+                print('val eval = ' + str(eval_metric_total))
+                print('val eval2 = ' + str(eval2_metric_total))
+            else:
+                print("NO VALID MANIFEST")
 
 def evaluate(loader, net, Loss, data_type,
              logger, epoch,  Eval, Eval2, Loss2,
