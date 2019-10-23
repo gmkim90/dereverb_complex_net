@@ -118,13 +118,17 @@ def main(args):
         Eval2 = None
 
     # Network
-    from models.unet import Unet
-    if (args.model_json.find('models') == -1):
-        args.model_json = 'models/' + args.model_json
-    json_path = os.path.join(args.model_json)
-    params = utils.Params(json_path)
-    net = Unet(params.model, nMic = args.nMic,
-                input_type=args.input_type, ds_rate = args.ds_rate, w_init_std=args.w_init_std)
+    if(args.model_type == 'unet'):
+        from models.unet import Unet
+        if (args.model_json.find('models') == -1):
+            args.model_json = 'models/' + args.model_json
+        json_path = os.path.join(args.model_json)
+        params = utils.Params(json_path)
+        net = Unet(params.model, nMic = args.nMic,
+                    input_type=args.input_type, ds_rate = args.ds_rate, w_init_std=args.w_init_std)
+    elif(args.model_type == 'cMLP'):
+        from models.cMLP import cMLP
+        net = cMLP(nLayer = args.nLayer, nHidden = args.nHidden, nFreq = args.nFreq, nMic = args.nMic, ds_rate = args.ds_rate)
 
 
     if(args.mode == 'train'):
