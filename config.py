@@ -69,8 +69,12 @@ parser.add_argument('--optimizer', default='adam', type=str)
 parser.add_argument('--grid_cm', default=0, type=int, help = 'if larger than 0, it use L221_10105_grid dataset ')
 
 parser.add_argument('--model_type', default = 'unet', type=str, help = 'unet|lcn')
-parser.add_argument('--nHidden', default=64, type=int) # LCN
-parser.add_argument('--nLayer', default=3, type=int) # LCN
+
+parser.add_argument('--nHidden', default=64, type=int) # LCN or MLP
+parser.add_argument('--nLayer', default=3, type=int) # LCN or MLP
+parser.add_argument('--nFreq', default=1601, type=int) # LCN or MLP
+
+
 parser.add_argument('--ksz_time', default=3, type=int) # LCN
 parser.add_argument('--CW_freq', default=0, type=int) # LCN
 
