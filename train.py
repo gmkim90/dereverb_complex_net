@@ -328,9 +328,12 @@ def main(args):
                                'checkpoint/' + str(args.expnum) + '-model.pth.tar')
 
                     if(loss_valmin > loss_val_total):
-                        print('valid loss decrease compared to min, copy model')
-                        copyfile('checkpoint/' + str(args.expnum) + '-model.pth.tar', 'checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
-
+                        loss_valmin = loss_val_total
+                        #print('valid loss decrease compared to min, save valmin model')
+                        #copyfile('checkpoint/' + str(args.expnum) + '-model.pth.tar', 'checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
+                        torch.save({'epoch': epoch + 1, 'model': net.state_dict(), 'optimizer': optimizer.state_dict(),
+                                    'loss_val': loss_val_total, 'loss_valmin': loss_valmin},
+                                   'checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
 
             #torch.save({'epoch': epoch + 1, 'model': net.state_dict(), 'optimizer': optimizer.state_dict()},
 #                       'checkpoint/' + str(args.expnum) + '-model.pth.tar')
@@ -338,9 +341,9 @@ def main(args):
         logger.close()
 
     elif(args.mode == 'generate'):
-        print('load pretrained model')
+        print('load valmin model')
 
-        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar', map_location=lambda storage, loc: storage)
+        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar', map_location=lambda storage, loc: storage)
         net.load_state_dict(checkpoint['model'])
         net.cuda()
 
@@ -385,6 +388,7 @@ def main(args):
                     reverb_paths = []
                     for n in range(input[0].size(0)):
                         reverb_paths.append(input[2][n])
+                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
 
                     specs_path = 'specs/' + str(args.expnum) + '/metric_tr_' + str(count) + '.mat'
 
@@ -430,6 +434,7 @@ def main(args):
                     reverb_paths = []
                     for n in range(input[0].size(0)):
                         reverb_paths.append(input[2][n])
+                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
 
                     specs_path = 'specs/' + str(args.expnum) + '/metric_val_' + str(count) + '.mat'
 

@@ -152,6 +152,9 @@ parser.add_argument('--eps', default=1e-20, type=float)
 parser.add_argument('--start_epoch', default=0, type=int, help = 'if > 0, resume training from end of the train')
 parser.add_argument('--end_epoch', default=10000, type=int, help='')
 
+parser.add_argument('--freq_center_idx', default=-1, type=int, help = 'if >= 0, choose only one freq to train')
+parser.add_argument('--freq_context_left_right_idx', default=0, type=int, help='if > 0, use freq train')
+
 
 #parser.add_argument('--clamp_src', default=0, type=int, help = 'if > 0, clamp clean source of front/end. (i.e., clamp front/end silence)')
 #parser.add_argument('--clamp_frame', default=0, type=int, help = 'if > 0, clamp S & X of front/end as frame unit(i.e., clamp front/end silence)')

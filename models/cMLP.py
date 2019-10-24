@@ -86,17 +86,27 @@ class cLinear_Bn_Act(nn.Module):
         return yr, yi
 
 class cMLP(nn.Module):
-    def __init__(self, nLayer=1, nHidden=256, nMic = 1, nFreq=0, ds_rate = 1):
+    def __init__(self, nLayer=1, nHidden=256, nMic = 1, nFreq=0, ds_rate = 1, freq_center_idx=-1, freq_context_left_right_idx =0):
         super(cMLP, self).__init__()
         self.nFreq=nFreq
         self.nLayer = nLayer
         self.nMic = nMic
         assert(self.nMic == 2), 'currently, nMic == 2 is supported'
-        self.nFreq = nFreq
         self.ds_rate = ds_rate
+        if(freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+            self.select_freq = True
+            self.freq_center_idx = freq_center_idx
+            self.freq_context_left_right_idx = freq_context_left_right_idx
+            self.nFreq = 1
+            nInput = freq_context_left_right_idx*2+1
+            assert(ds_rate == 1)
+        else:
+            self.select_freq = False
+            self.nFreq = nFreq
+            nInput = int((nFreq - 1) / ds_rate + 1)
 
         self.net = nn.ModuleList()
-        nInput = int((nFreq-1)/ds_rate + 1)
+
         for l in range(nLayer-1):
             #net.append(cLinear(nInput, nHidden, bias=False)) # with batchnorm, bias is unnecessary
             #net.append(nn.BatchNorm1d(num_features=nHidden))
@@ -106,7 +116,10 @@ class cMLP(nn.Module):
             nInput = nHidden
 
         #net.append(cLinear_Bn_Act(nIn = nHidden, nOut = nFreq, bias=True, use_bn = False, use_act = False))
-        self.net.append(cLinear(nIn = nHidden, nOut = nFreq*self.nMic, bias=True))
+        if(self.select_freq):
+            self.net.append(cLinear(nIn = nHidden, nOut = self.nMic, bias=True))
+        else:
+            self.net.append(cLinear(nIn=nHidden, nOut=self.nFreq * self.nMic, bias=True))
 
         #self.net = nn.Sequential(*net) # not suitable for input with two arguments (e.g., xr, xi)
 
