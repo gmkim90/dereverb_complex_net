@@ -7,7 +7,7 @@ arguments=$1
 for epoch in $(seq 0 100 1000000); do
     echo "training $epoch epoch"
 
-    python3.7 train.py $arguments --start_epoch $epoch --num_epochs $((epoch+100)) --start_ratio 0 --end_ratio 1
+    python3.7 train.py $arguments --start_epoch $epoch --end_epoch $((epoch+100)) --start_ratio 0 --end_ratio 1
     sleep 5
 
     if [ $epoch == 0 ]; then # git upload after successful execution

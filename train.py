@@ -10,7 +10,7 @@ import gc
 
 import utils
 from utils import get_stride_product_time, count_parameters, save_input_mat_for_debug
-
+from shutil import copyfile
 import models.loss as losses
 
 import pickle
@@ -132,11 +132,13 @@ def main(args):
 
 
     if(args.mode == 'train'):
-        if (args.eval_iter == 0 or args.eval_iter > len(train_loader)):
-            args.eval_iter = len(train_loader)
+        loss_valmin = 1000000000
+        maxiter = (args.end_epoch - args.start_epoch)*len(train_loader)
+        if (args.eval_iter == 0 or args.eval_iter > maxiter):
+            args.eval_iter = maxiter
 
-        if (args.log_iter == 0 or args.log_iter > len(train_loader)):
-            args.log_iter = len(train_loader)
+        if (args.log_iter == 0 or args.log_iter > maxiter):
+            args.log_iter = maxiter
 
 
         if(args.start_epoch > 0):
@@ -144,6 +146,9 @@ def main(args):
 
             checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar',
                                     map_location=lambda storage, loc: storage)
+
+            if('loss_valmin' in checkpoint.keys()):
+                loss_valmin = checkpoint['loss_valmin']
 
             print('load saved model') # order of netdefine-netload-netcuda-optimdefine-optimload-optimcuda is important
             net.load_state_dict(checkpoint['model'])
@@ -185,7 +190,7 @@ def main(args):
         count_mb = 0
         count_eval = 0
 
-        for epoch in range(args.start_epoch, args.num_epochs):
+        for epoch in range(args.start_epoch, args.end_epoch):
             # train
             loss_mb = 0
             loss2_mb = 0
@@ -296,7 +301,7 @@ def main(args):
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
-                            evaluate(val_loader, net, Loss, 'val',
+                            loss_val_total = evaluate(val_loader, net, Loss, 'val',
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type=args.loss_type, eval_type = args.eval_type
                                      ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
@@ -318,23 +323,36 @@ def main(args):
                         gc.collect()
                         utils.CPUmemDebug('memory after gc.collect()', logger)
 
-                    torch.save({'epoch': epoch+1, 'model':net.state_dict(), 'optimizer': optimizer.state_dict()},
+                    torch.save({'epoch': epoch+1, 'model':net.state_dict(), 'optimizer': optimizer.state_dict(),
+                                'loss_val':loss_val_total, 'loss_valmin':loss_valmin},
                                'checkpoint/' + str(args.expnum) + '-model.pth.tar')
 
-            torch.save({'epoch': epoch + 1, 'model': net.state_dict(), 'optimizer': optimizer.state_dict()},
-                       'checkpoint/' + str(args.expnum) + '-model.pth.tar')
+                    if(loss_valmin > loss_val_total):
+                        loss_valmin = loss_val_total
+                        #print('valid loss decrease compared to min, save valmin model')
+                        #copyfile('checkpoint/' + str(args.expnum) + '-model.pth.tar', 'checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
+                        torch.save({'epoch': epoch + 1, 'model': net.state_dict(), 'optimizer': optimizer.state_dict(),
+                                    'loss_val': loss_val_total, 'loss_valmin': loss_valmin},
+                                   'checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
+
+            #torch.save({'epoch': epoch + 1, 'model': net.state_dict(), 'optimizer': optimizer.state_dict()},
+#                       'checkpoint/' + str(args.expnum) + '-model.pth.tar')
             torch.cuda.empty_cache()
         logger.close()
 
     elif(args.mode == 'generate'):
-        print('load pretrained model')
+        print('load valmin model')
 
-        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model.pth.tar', map_location=lambda storage, loc: storage)
+        checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar', map_location=lambda storage, loc: storage)
         net.load_state_dict(checkpoint['model'])
         net.cuda()
 
         del checkpoint
         torch.cuda.empty_cache()
+
+        if not os.path.exists('specs/' + str(args.expnum)):
+            os.makedirs('specs/' + str(args.expnum))
+
 
         with torch.no_grad():
             if (len(args.tr_manifest) > 0): # tr
@@ -346,10 +364,12 @@ def main(args):
                 for _, input in enumerate(tqdm(train_loader)):
                     count = count + 1
 
+                    savename = 'specs/' + str(args.expnum) + '/tr_' + str(count) + '.mat'
+
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
                                        loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, count=count, expnum=args.expnum)
+                                         use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
 
                     metrics_save = {}
                     if(loss is not None):
@@ -368,6 +388,7 @@ def main(args):
                     reverb_paths = []
                     for n in range(input[0].size(0)):
                         reverb_paths.append(input[2][n])
+                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
 
                     specs_path = 'specs/' + str(args.expnum) + '/metric_tr_' + str(count) + '.mat'
 
@@ -389,10 +410,12 @@ def main(args):
                 for _, input in enumerate(tqdm(val_loader)):
                     count = count + 1
 
+                    savename = 'specs/' + str(args.expnum) + '/val_' + str(count) + '.mat'
+
                     loss, loss2, eval_metric, eval2_metric = \
                         forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
                                        loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR_te, save_activation=args.save_activation, count=count, expnum=args.expnum)
+                                         use_ref_IR=args.use_ref_IR_te, save_activation=args.save_activation, savename=savename)
 
                     metrics_save = {}
                     if(loss is not None):
@@ -411,6 +434,7 @@ def main(args):
                     reverb_paths = []
                     for n in range(input[0].size(0)):
                         reverb_paths.append(input[2][n])
+                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
 
                     specs_path = 'specs/' + str(args.expnum) + '/metric_val_' + str(count) + '.mat'
 
@@ -470,6 +494,8 @@ def evaluate(loader, net, Loss, data_type,
         logger.write(data_type + ', epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_total) + '\n')
 
         logger.flush()
+
+    return loss_total
 
 if __name__ == '__main__':
     config, unparsed = get_config()

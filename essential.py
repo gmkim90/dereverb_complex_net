@@ -75,7 +75,7 @@ def get_gtW_negative(Ht_real, Ht_imag, Hr_real, Hr_imag, eps = 1e-16):
 
 def forward_common(input, net, Loss,
                    Loss2 = None, Eval=None, Eval2=None, loss_type = '', loss2_type = '', eval_type = '', eval2_type='',
-                   use_ref_IR=False, save_activation=False, count=0, expnum=-1):
+                   use_ref_IR=False, save_activation=False, savename='', freq_center_idx=-1, freq_context_left_right_idx=0):
 
     tarH = input[0]
     tarH_real, tarH_imag = tarH[..., 0], tarH[..., 1]
@@ -92,6 +92,9 @@ def forward_common(input, net, Loss,
             Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
         else:
             Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+        if(freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+            Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
+            Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
 
         loss = -Loss(Wgt_real, Wgt_imag, West_real, West_imag)
     else:
@@ -109,6 +112,10 @@ def forward_common(input, net, Loss,
                 Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
             else:
                 Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+            if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+                Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+                Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+
             eval_metric = Eval(Wgt_real, Wgt_imag, West_real, West_imag)
         else:
             eval_metric = None
@@ -121,6 +128,11 @@ def forward_common(input, net, Loss,
                 Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
             else:
                 Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+
+            if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+                Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+                Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+
             eval2_metric = Eval2(Wgt_real, Wgt_imag, West_real, West_imag)
         else:
             eval2_metric = None
@@ -128,9 +140,9 @@ def forward_common(input, net, Loss,
         eval2_metric = None
 
     if(save_activation): # separate activation & metric to save memory
-        specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
+        #specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
 
-        sio.savemat(specs_path,
+        sio.savemat(savename,
                     {'tarH': tarH.data.cpu().numpy(), 'refH': refH.data.cpu().numpy(),
                      'Wgt_real': Wgt_real.data.cpu().numpy(), 'Wgt_imag': Wgt_imag.data.cpu().numpy(),
                      'West_real': West_real.data.cpu().numpy(), 'West_imag': West_imag.data.cpu().numpy()
