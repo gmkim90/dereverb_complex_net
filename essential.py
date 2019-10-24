@@ -87,7 +87,7 @@ def forward_common(input, net, Loss,
 
     West_real, West_imag = net(tarH_real, tarH_imag) # for now, refH is not used to predict W
 
-    if(use_ref_IR):
+    if(loss_type.find('Wdiff') >= 0):
         if(loss_type.find('positive') == -1):
             Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
         else:
@@ -97,43 +97,112 @@ def forward_common(input, net, Loss,
             Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
 
         loss = -Loss(Wgt_real, Wgt_imag, West_real, West_imag)
+    elif(loss_type.find('WH_sum') >= 0):
+        if (loss_type.find('positive') == -1):
+            target_real = 0
+            target_imag = 0
+        else:
+            target_real = 1
+            target_imag = 0
+
+        if(loss_type.find('tar') >= 0):
+            H_real = tarH_real
+            H_imag = tarH_imag
+        elif(loss_type.find('ref')>= 0):
+            H_real = refH_real
+            H_imag = refH_imag
+        loss = -Loss(H_real, H_imag, West_real, West_imag, target_real, target_imag)
     else:
         loss = None
 
-
     if(Loss2 is not None):
-        assert(0), 'loss2 (regularization) is not available for now'
-    else:
-        loss2 = None
-
-    if(Eval is not None):
-        if(use_ref_IR):
-            if(eval_type.find('positive') == -1):
+        if (loss2_type.find('Wdiff') >= 0):
+            if (loss2_type.find('positive') == -1):
                 Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
             else:
                 Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
             if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
                 Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
-                Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+                Wgt_imag = Wgt_imag[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+
+            loss2 = -Loss2(Wgt_real, Wgt_imag, West_real, West_imag)
+        elif (loss2_type.find('WH_sum') >= 0):
+            if (loss2_type.find('positive') == -1):
+                target_real = 0
+                target_imag = 0
+            else:
+                target_real = 1
+                target_imag = 0
+
+            if (loss2_type.find('tar') >= 0):
+                H_real = tarH_real
+                H_imag = tarH_imag
+            elif (loss2_type.find('ref') >= 0):
+                H_real = refH_real
+                H_imag = refH_imag
+            loss2 = -Loss2(H_real, H_imag, West_real, West_imag, target_real, target_imag)
+        else:
+            loss2 = None
+    else:
+        loss2 = None
+
+    if(Eval is not None):
+        if (eval_type.find('Wdiff') >= 0):
+            if (eval_type.find('positive') == -1):
+                Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
+            else:
+                Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
+            if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+                Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+                Wgt_imag = Wgt_imag[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
 
             eval_metric = Eval(Wgt_real, Wgt_imag, West_real, West_imag)
+        elif (eval_type.find('WH_sum') >= 0):
+            if (eval_type.find('positive') == -1):
+                target_real = 0
+                target_imag = 0
+            else:
+                target_real = 1
+                target_imag = 0
+
+            if (eval_type.find('tar') >= 0):
+                H_real = tarH_real
+                H_imag = tarH_imag
+            elif (eval_type.find('ref') >= 0):
+                H_real = refH_real
+                H_imag = refH_imag
+            eval_metric = Eval(H_real, H_imag, West_real, West_imag, target_real, target_imag)
         else:
             eval_metric = None
     else:
         eval_metric = None
 
     if(Eval2 is not None):
-        if(use_ref_IR):
-            if(eval2_type.find('positive') == -1):
+        if (eval2_type.find('Wdiff') >= 0):
+            if (eval2_type.find('positive') == -1):
                 Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
             else:
                 Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
-
             if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
                 Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
-                Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
+                Wgt_imag = Wgt_imag[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1,:]
 
             eval2_metric = Eval2(Wgt_real, Wgt_imag, West_real, West_imag)
+        elif (eval2_type.find('WH_sum') >= 0):
+            if (eval2_type.find('positive') == -1):
+                target_real = 0
+                target_imag = 0
+            else:
+                target_real = 1
+                target_imag = 0
+
+            if (eval2_type.find('tar') >= 0):
+                H_real = tarH_real
+                H_imag = tarH_imag
+            elif (eval2_type.find('ref') >= 0):
+                H_real = refH_real
+                H_imag = refH_imag
+            eval2_metric = Eval2(H_real, H_imag, West_real, West_imag, target_real, target_imag)
         else:
             eval2_metric = None
     else:

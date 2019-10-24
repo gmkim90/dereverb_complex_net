@@ -86,34 +86,22 @@ def main(args):
 
     # Set loss type
     if(len(args.loss_type) > 0):
-        if(args.loss_type.find('positive') == -1):
-            Loss = getattr(losses, args.loss_type)
-        else:
-            Loss = getattr(losses, args.loss_type.replace('_positive', ''))
+        Loss = getattr(losses, args.loss_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Loss = None
 
     if(len(args.loss2_type) > 0):
-        if(args.loss2_type.find('positive') == -1):
-            Loss2 = getattr(losses, args.loss2_type)
-        else:
-            Loss2 = getattr(losses, args.loss2_type.replace('_positive', ''))
+        Loss2 = getattr(losses, args.loss2_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Loss2 = None
 
     if(len(args.eval_type) > 0):
-        if(args.eval_type.find('positive') == -1):
-            Eval = getattr(losses, args.eval_type)
-        else:
-            Eval = getattr(losses, args.eval_type.replace('_positive', ''))
+        Eval = getattr(losses, args.eval_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Eval = None
 
     if (len(args.eval2_type) > 0):
-        if(args.eval2_type.find('positive') == -1):
-            Eval2 = getattr(losses, args.eval2_type)
-        else:
-            Eval2 = getattr(losses, args.eval2_type.replace('_positive', ''))
+        Eval2 = getattr(losses, args.eval2_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Eval2 = None
 
