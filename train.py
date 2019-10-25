@@ -86,34 +86,22 @@ def main(args):
 
     # Set loss type
     if(len(args.loss_type) > 0):
-        if(args.loss_type.find('positive') == -1):
-            Loss = getattr(losses, args.loss_type)
-        else:
-            Loss = getattr(losses, args.loss_type.replace('_positive', ''))
+        Loss = getattr(losses, args.loss_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Loss = None
 
     if(len(args.loss2_type) > 0):
-        if(args.loss2_type.find('positive') == -1):
-            Loss2 = getattr(losses, args.loss2_type)
-        else:
-            Loss2 = getattr(losses, args.loss2_type.replace('_positive', ''))
+        Loss2 = getattr(losses, args.loss2_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Loss2 = None
 
     if(len(args.eval_type) > 0):
-        if(args.eval_type.find('positive') == -1):
-            Eval = getattr(losses, args.eval_type)
-        else:
-            Eval = getattr(losses, args.eval_type.replace('_positive', ''))
+        Eval = getattr(losses, args.eval_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Eval = None
 
     if (len(args.eval2_type) > 0):
-        if(args.eval2_type.find('positive') == -1):
-            Eval2 = getattr(losses, args.eval2_type)
-        else:
-            Eval2 = getattr(losses, args.eval2_type.replace('_positive', ''))
+        Eval2 = getattr(losses, args.eval2_type.replace('_positive', '').replace('_negative', '').replace('_tar', '').replace('_ref', ''))
     else:
         Eval2 = None
 
@@ -187,19 +175,20 @@ def main(args):
         #scheduler = ExponentialLR(optimizer, 0.95) # do not use scheduler anymore
 
         count = 0
-        count_mb = 0
+        #count_mb = 0
         count_eval = 0
 
+        # train
+        loss_mb = 0
+        loss2_mb = 0
+        eval_metric_mb = 0
+        eval2_metric_mb = 0
+
         for epoch in range(args.start_epoch, args.end_epoch):
-            # train
-            loss_mb = 0
-            loss2_mb = 0
-            eval_metric_mb = 0
-            eval2_metric_mb = 0
 
             for _, input in enumerate(tqdm(train_loader)):
                 count += 1
-                count_mb += 1
+                #count_mb += 1
 
                 if(not count % args.log_iter == 0):
                     loss, loss2, eval_metric, eval2_metric = \
@@ -255,10 +244,12 @@ def main(args):
                         print('train, epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_mean))
                         logger.write('train, epoch: ' + str(epoch) + ', eval2_metric: ' + str(eval2_metric_mean) + '\n')
 
-                    loss_mb = loss_mb/count_mb
-                    loss2_mb = loss2_mb / count_mb
-                    eval_metric_mb = eval_metric_mb/count_mb
-                    eval2_metric_mb = eval2_metric_mb/count_mb
+                    loss_mb = loss_mb/args.log_iter
+                    loss2_mb = loss2_mb / args.log_iter
+                    eval_metric_mb = eval_metric_mb/args.log_iter
+                    eval2_metric_mb = eval2_metric_mb/args.log_iter
+
+                    #print('count_mb = ' + str(count_mb))
 
                     print('train, epoch: ' + str(epoch) + ', loss (minibatch): ' + str(loss_mb))
                     print('train, epoch: ' + str(epoch) + ', loss2 (minibatch): ' + str(loss2_mb))
@@ -275,7 +266,7 @@ def main(args):
                     loss2_mb = 0
                     eval_metric_mb = 0
                     eval2_metric_mb = 0
-                    count_mb = 0
+                    #count_mb = 0
 
 
                 #utils.CPUmemDebug('before backward & step', mem_debug_file)

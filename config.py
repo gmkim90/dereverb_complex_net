@@ -138,7 +138,7 @@ parser.add_argument('--use_ref_IR', default=False, type=str2bool, help='usage of
 parser.add_argument('--use_ref_IR_te', default=False, type=str2bool, help='usage of IR from reference position (for test data)')
 
 parser.add_argument('--use_neighbor_IR', default=False, type=str2bool, help='usage of neighborhood IRs for SDR sensitivity')
-parser.add_argument('--w_loss2', default=1, type=float, help='task weight of auxiliary loss (e.g., refIR demixing)')
+parser.add_argument('--w_loss2', default=0, type=float, help='task weight of auxiliary loss (e.g., refIR demixing)')
 
 parser.add_argument('--batch_size', default=8, type=int, help='train batch size')
 parser.add_argument('--expnum', default=-1, type=int)

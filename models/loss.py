@@ -42,3 +42,18 @@ def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e-20):
     # note that SDR is already normalized by #frame
 
     return SDR
+
+def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag):
+
+    # H, W: NxMxFxT
+    WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxFxT
+    WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxFxT
+
+    err_real = WS_real - target_real
+    err_imag = WS_imag - target_imag
+
+    #err_power = torch.sum(torch.sum(err_real*err_real + err_imag*err_imag, dim=2), dim=1)
+    negative_err_power = -torch.sum(torch.sum(err_real * err_real + err_imag * err_imag, dim=2), dim=1) # -sign for loss convention
+
+    #return err_power
+    return negative_err_power
