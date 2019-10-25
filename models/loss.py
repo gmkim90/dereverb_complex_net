@@ -52,6 +52,8 @@ def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag):
     err_real = WS_real - target_real
     err_imag = WS_imag - target_imag
 
-    err_power = torch.sum(torch.sum(err_real*err_real + err_imag*err_imag, dim=2), dim=1)
+    #err_power = torch.sum(torch.sum(err_real*err_real + err_imag*err_imag, dim=2), dim=1)
+    negative_err_power = -torch.sum(torch.sum(err_real * err_real + err_imag * err_imag, dim=2), dim=1) # -sign for loss convention
 
-    return err_power
+    #return err_power
+    return negative_err_power
