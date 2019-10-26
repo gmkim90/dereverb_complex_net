@@ -85,6 +85,12 @@ def forward_common(input, net, Loss,
         refH = input[1]
         refH_real, refH_imag = refH[..., 0], refH[..., 1]
 
+    if (freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+        tarH_real = tarH_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
+        tarH_imag = tarH_imag[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1, :]
+        refH_real = refH_real[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1, :]
+        refH_imag = refH_imag[:, :,freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx + 1, :]
+
     West_real, West_imag = net(tarH_real, tarH_imag) # for now, refH is not used to predict W
 
     if(loss_type.find('Wdiff') >= 0):
@@ -92,9 +98,9 @@ def forward_common(input, net, Loss,
             Wgt_real, Wgt_imag = get_gtW_negative(tarH_real, tarH_imag, refH_real, refH_imag)
         else:
             Wgt_real, Wgt_imag = get_gtW_positive(tarH_real, tarH_imag, refH_real, refH_imag)
-        if(freq_center_idx >= 0 and freq_context_left_right_idx > 0):
-            Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
-            Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
+        #if(freq_center_idx >= 0 and freq_context_left_right_idx > 0):
+#            Wgt_real = Wgt_real[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
+#            Wgt_imag = Wgt_imag[:, :, freq_center_idx - freq_context_left_right_idx:freq_center_idx + freq_context_left_right_idx+1, :]
 
         loss = -Loss(Wgt_real, Wgt_imag, West_real, West_imag)
     elif(loss_type.find('WH_sum') >= 0):

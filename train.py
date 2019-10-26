@@ -116,7 +116,8 @@ def main(args):
                     input_type=args.input_type, ds_rate = args.ds_rate, w_init_std=args.w_init_std)
     elif(args.model_type == 'cMLP'):
         from models.cMLP import cMLP
-        net = cMLP(nLayer = args.nLayer, nHidden = args.nHidden, nFreq = args.nFreq, nMic = args.nMic, ds_rate = args.ds_rate)
+        net = cMLP(nLayer = args.nLayer, nHidden = args.nHidden, nFreq = args.nFreq, nMic = args.nMic, ds_rate = args.ds_rate,
+                   freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
 
 
     if(args.mode == 'train'):
@@ -195,7 +196,7 @@ def main(args):
                         forward_common(input, net, Loss,
                                        Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
                                        loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR)
+                                         use_ref_IR=args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -218,7 +219,7 @@ def main(args):
                         forward_common(input, net, Loss,
                                        Loss2=Loss2, Eval=Eval, Eval2=Eval2,
                                        loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
-                                       use_ref_IR = args.use_ref_IR)
+                                       use_ref_IR = args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -288,27 +289,37 @@ def main(args):
                             evaluate(trsub_loader, net, Loss, 'trsub',
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type = args.loss_type, eval_type = args.eval_type
-                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
+                                     freq_center_idx=args.freq_center_idx,
+                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
                             loss_val_total = evaluate(val_loader, net, Loss, 'val',
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type=args.loss_type, eval_type = args.eval_type
-                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
+                                                      freq_center_idx=args.freq_center_idx,
+                                                      freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
 
                         # Test
                         if (len(args.te1_manifest) > 0):
                             evaluate(test1_loader, net, Loss, 'te1',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type,
+                                     use_ref_IR=args.use_ref_IR_te,
+                                     freq_center_idx=args.freq_center_idx,
+                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
 
 
                         # Test2
                         if (len(args.te2_manifest) > 0):
                             evaluate(test2_loader, net, Loss, 'te2',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te)  # do not use Loss2 for evaluate
+                                     loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type,
+                                     use_ref_IR=args.use_ref_IR_te,
+                                     freq_center_idx=args.freq_center_idx,
+                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -441,7 +452,7 @@ def main(args):
 def evaluate(loader, net, Loss, data_type,
              logger, epoch,  Eval, Eval2, Loss2,
              eval_type = '', eval2_type='', loss_type = '', loss2_type ='',
-             use_ref_IR=False):
+             use_ref_IR=False, freq_center_idx=-1, freq_context_left_right_idx=0):
     count = 0
     loss_total = 0
     loss2_total = 0
@@ -453,7 +464,7 @@ def evaluate(loader, net, Loss, data_type,
             count += 1
             loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2,
                                                                     loss_type = loss_type, eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
-                                                                    use_ref_IR=use_ref_IR) # do not use Loss2 & ref_IR for eval
+                                                                    use_ref_IR=use_ref_IR,freq_center_idx=freq_center_idx, freq_context_left_right_idx=freq_context_left_right_idx) # do not use Loss2 & ref_IR for eval
 
             if(loss is not None):
                 loss_mean = torch.mean(loss)
