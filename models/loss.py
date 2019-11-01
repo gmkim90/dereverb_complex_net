@@ -43,17 +43,90 @@ def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e-20):
 
     return SDR
 
-def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag):
+def diff(enh_real, enh_imag, target_real, target_imag, Tlist, match_domain = 'realimag', eps=1e-16):
+    if(match_domain == 'mag'):
+        enh_mag = torch.sqrt(enh_real*enh_real + enh_imag*enh_imag + eps)
+        target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+        err_mag = enh_mag - target_mag
+        err_power = err_mag*err_mag
+    elif(match_domain == 'realimag'):
+        err_real = enh_real - target_real
+        err_imag = enh_imag - target_imag
+        err_power = err_real * err_real + err_imag * err_imag
+
+    #err_power = torch.sum(torch.sum(err_real*err_real + err_imag*err_imag, dim=2), dim=1)
+    negative_err_power = -torch.sum(torch.sum(err_power, dim=2), dim=1) # -sign for loss convention
+
+    if(Tlist is not None): # source-dependent case
+        negative_err_power = negative_err_power/(Tlist.float().cuda())
+
+    #return err_power
+    return negative_err_power
+
+
+def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag, Tlist, match_domain = 'realimag', eps=1e-16):
 
     # H, W: NxMxFxT
     WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxFxT
     WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxFxT
 
-    err_real = WS_real - target_real
-    err_imag = WS_imag - target_imag
+    if(match_domain == 'mag'):
+        WS_mag = torch.sqrt(WS_real*WS_real + WS_imag*WS_imag + eps)
+        target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+        err_mag = WS_mag - target_mag
+        err_power = err_mag*err_mag
+    elif(match_domain == 'realimag'):
+        err_real = WS_real - target_real
+        err_imag = WS_imag - target_imag
+        err_power = err_real * err_real + err_imag * err_imag
 
     #err_power = torch.sum(torch.sum(err_real*err_real + err_imag*err_imag, dim=2), dim=1)
-    negative_err_power = -torch.sum(torch.sum(err_real * err_real + err_imag * err_imag, dim=2), dim=1) # -sign for loss convention
+    negative_err_power = -torch.sum(torch.sum(err_power, dim=2), dim=1) # -sign for loss convention
+
+    if(Tlist is not None): # source-dependent case
+        negative_err_power = negative_err_power/(Tlist.float().cuda())
 
     #return err_power
     return negative_err_power
+
+def distortion_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-12):
+    F = clean_real.size(1)
+
+    clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
+    output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)
+
+    distortion_mag =  output_mag-clean_mag
+    distortion_power = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    Tlist_float = Tlist.float().cuda()
+
+    distortion_power_frame_normalized_negative = -distortion_power/(Tlist_float*F) # x(-1) for -loss convention
+
+    return distortion_power_frame_normalized_negative
+
+def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-16):
+    # Tlist as dummy variable
+    clean_mag = torch.sqrt(clean_real*clean_real + clean_imag*clean_imag+eps)
+    output_mag = torch.sqrt(output_real*output_real + output_imag*output_imag+eps)
+    signal_power = torch.sum(torch.sum(clean_mag*clean_mag, dim=2), dim=1)
+
+    distortion_mag = output_mag-clean_mag
+    distortion_power = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    SDR = 10*(torch.log10(signal_power+eps) - torch.log10(distortion_power+eps))
+
+    return SDR # #minibatchx1
+
+def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
+    F = X_real.size(2)
+
+    # size: NxMxFxT
+    XW_real = torch.sum(W_real*X_real-W_imag*X_imag, dim=1) # NxFxT
+    XW_imag = torch.sum(W_real*X_imag+W_imag*X_real, dim=1) # NxFxT
+
+    XW_power = torch.sum(torch.sum(XW_real*XW_real + XW_imag*XW_imag, dim=2), dim=1) # Nx1
+
+    Tlist_float = Tlist.float().cuda()
+    XW_power_frame_normalized_negative = -XW_power/(Tlist_float*F) # x(-1) for -loss convention
+
+    return XW_power_frame_normalized_negative

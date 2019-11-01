@@ -3,7 +3,7 @@
 # brain21
 
 arguments=$1
-for ((epoch=0;epoch<=10000;epoch++)); do
+for ((epoch=0;epoch<=1000000;epoch++)); do
     echo "training $epoch epoch"
 
     python3.7 train.py $arguments --start_epoch $epoch --end_epoch $((epoch+1)) --start_ratio 0 --end_ratio 1
