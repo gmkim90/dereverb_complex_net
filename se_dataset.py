@@ -420,7 +420,7 @@ class SpecDataset_src(data.Dataset): # src-dependent
             refmic_STFT = refmic_STFT[:, :, :, 1:, :]  # NxMxFxTx2
 
         nFrame_tensor = get_nFrame_from_nTime(nTime_list, self.win_size, self.hop_size)
-        assert(mic_STFT.size(3) == nFrame_tensor.max().item()), 'batch STFT max length = ' + str(mic_STFT.size(3)) + ' VS. nFrame_tensor.max() = ' + str(nFrame_tensor.max().item())
+        #assert(mic_STFT.size(3) == nFrame_tensor.max().item()), 'batch STFT max length = ' + str(mic_STFT.size(3)) + ' VS. nFrame_tensor.max() = ' + str(nFrame_tensor.max().item())
 
 
         #if (y_STFT.size(0) > 100):  # possibly, sample dimension is missing (cuz minibatch size = 1)

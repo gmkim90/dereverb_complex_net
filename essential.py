@@ -105,7 +105,7 @@ def get_gtW_positive_src(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps
     #return Wgt_real, Wgt_imag
     return torch.cat((Wgt1_real.unsqueeze(1), Wgt2_real.unsqueeze(1)), dim=1), torch.cat((Wgt1_imag.unsqueeze(1), Wgt2_imag.unsqueeze(1)), dim=1)
 
-def get_gt_negative_src(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
+def get_gtW_negative_src(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps = 1e-16):
     assert(Xt_real.size(1) == 2), 'currently, only #mic=2 is supported'
 
     Xt1_real = Xt_real[:, 0, :, :]
@@ -348,9 +348,9 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
 
     if(Eval2 is not None): # SDR(W)
         if (eval2_type.find('negative') >= 0):
-            Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag)
+            Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
         elif(eval2_type.find('positive') >= 0):
-            Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag)
+            Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
 
         eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag)
     else:

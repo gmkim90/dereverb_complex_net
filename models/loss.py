@@ -72,7 +72,10 @@ def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag, Tlist,
 
     if(match_domain == 'mag'):
         WS_mag = torch.sqrt(WS_real*WS_real + WS_imag*WS_imag + eps)
-        target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+        if(target_real == 0 and target_imag == 0):
+            target_mag = 0
+        else:
+            target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
         err_mag = WS_mag - target_mag
         err_power = err_mag*err_mag
     elif(match_domain == 'realimag'):
