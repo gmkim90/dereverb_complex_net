@@ -123,7 +123,7 @@ class TDNN(nn.Module):
 
 
 class Unet(nn.Module):
-    def __init__(self, cfg, nMic = 1, input_type ='complex', ds_rate = 1, w_init_std=0):
+    def __init__(self, cfg, nMic = 1, input_type ='complex', ds_rate = 1, w_init_std=0, out_type = 'W'):
         super(Unet, self).__init__()
         self.encoders = nn.ModuleList()
         self.input_type = input_type
@@ -150,14 +150,17 @@ class Unet(nn.Module):
             # cuda
             self.ds_weight = self.ds_weight.cuda()
 
-        if(input_type == 'complex_ratio' or input_type == 'log_complex_ratio' or input_type == 'log_complex_ratio_unwrap' or input_type == 'log_complex_ratio_cos'):
+        if(input_type.find('ratio') >= 0):
             cfg['encoders'][0][0] = nMic-1
         else:
             cfg['encoders'][0][0] = nMic
         for conv_cfg in cfg['encoders']:
             self.encoders.append(Encoder(conv_cfg, cfg['leaky_slope']))
 
-        cfg['decoders'][-1][1] = nMic
+        if(out_type == 'W'):
+            cfg['decoders'][-1][1] = nMic
+        elif(out_type == 'S'):
+            cfg['decoders'][-1][1] = 1
 
         self.decoders = nn.ModuleList()
         for dconv_cfg in cfg['decoders'][:-1]:
@@ -209,9 +212,9 @@ class Unet(nn.Module):
         if(self.ds_rate > 1):
             for decoder in self.decoders_additional:
                 xr, xi = decoder(xr, xi, skip=None)
-        West_real, West_imag = self.last_decoder(xr, xi) # get demixing weight
+        out_real, out_imag = self.last_decoder(xr, xi) # output could be demixing weight or source (depending on loss function)
 
-        return West_real, West_imag
+        return torch.squeeze(out_real, dim=1), torch.squeeze(out_imag, dim=1)
 
     def downsample_freq(self, xr, xi):
         # x : Nx(M-1)xFxT (x = Intermic ratio feature)

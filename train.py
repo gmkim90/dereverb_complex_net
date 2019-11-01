@@ -14,14 +14,14 @@ from shutil import copyfile
 import models.loss as losses
 
 import pickle
-from se_dataset import SpecDataset
+from se_dataset import SpecDataset, SpecDataset_src
 from torch.utils.data import DataLoader
 import scipy.io as sio
 #from memprof import *
 
 import pdb
 
-from essential import forward_common
+from essential import forward_common, forward_common_src
 from config import get_config
 
 def main(args):
@@ -32,8 +32,21 @@ def main(args):
     os.environ['CUDA_VISIBLE_DEVICES']=str(gpuIdx)
     print('gpuIdx = ' + str(gpuIdx) + ' is selected')
 
-    # define FFT (we don't need window here)
-    n_fft = args.nFFT
+    # define STFT
+    if(args.src_dependent):
+        if (args.hop_length == 0):
+            hop_length = int(args.nWin/2)
+        else:
+            hop_length = args.hop_length
+        window_path = 'window_' + str(args.nWin) + '.pth'
+        if not os.path.exists(window_path):
+            window = torch.hann_window(args.nWin)
+            torch.save(window, window_path)
+        else:
+            window = torch.load(window_path, map_location=torch.device('cpu'))
+        window = window.cuda()
+
+        stft = lambda x: torch.stft(x, args.nFFT, hop_length, win_length=args.nWin, window=window)
 
     if(args.mode == 'generate'):
         args.return_path = True
@@ -48,15 +61,25 @@ def main(args):
     if (len(args.tr_manifest) > 0):
         if(args.tr_manifest.find('data_sorted') == -1):
             args.tr_manifest = 'data_sorted/' + args.tr_manifest
-        train_dataset = SpecDataset(manifest_path=args.tr_manifest, nMic=args.nMic, return_path=args.return_path,
-                                    src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
-                                    interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR)
+        if(args.src_dependent):
+            train_dataset = SpecDataset_src(manifest_path=args.tr_manifest, stft=stft, win_size=args.nWin, hop_size=hop_length, nMic=args.nMic, return_path=args.return_path,
+                                        src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
+                                        interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR)
+        else:
+            train_dataset = SpecDataset(manifest_path=args.tr_manifest, nMic=args.nMic, return_path=args.return_path,
+                                        src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
+                                        interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
 
     if (len(args.trsub_manifest) > 0):
         if (args.trsub_manifest.find('data_sorted') == -1):
             args.trsub_manifest = 'data_sorted/' + args.trsub_manifest
-        trsub_dataset = SpecDataset(manifest_path=args.trsub_manifest, nMic=args.nMic, return_path=args.return_path,
+        if(args.src_dependent):
+            trsub_dataset = SpecDataset_src(manifest_path=args.trsub_manifest, stft=stft, win_size=args.nWin, hop_size=hop_length, nMic=args.nMic, return_path=args.return_path,
+                                    src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
+                                    interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR_te)
+        else:
+            trsub_dataset = SpecDataset(manifest_path=args.trsub_manifest, nMic=args.nMic, return_path=args.return_path,
                                     src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                     interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR_te)
         trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
@@ -64,22 +87,37 @@ def main(args):
     if (len(args.val_manifest) > 0):
         if (args.val_manifest.find('data_sorted') == -1):
             args.val_manifest = 'data_sorted/' + args.val_manifest
-        val_dataset = SpecDataset(manifest_path=args.val_manifest, nMic=args.nMic, return_path=args.return_path,
+        if(args.src_dependent):
+            val_dataset = SpecDataset_src(manifest_path=args.val_manifest, nMic=args.nMic, return_path=args.return_path,
+                                      stft=stft, win_size=args.nWin, hop_size=hop_length,
                                   src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+        else:
+            val_dataset = SpecDataset(manifest_path=args.val_manifest, nMic=args.nMic, return_path=args.return_path,
+                                      src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te1_manifest) > 0):
         if (args.te1_manifest.find('data_sorted') == -1):
             args.te1_manifest = 'data_sorted/' + args.te1_manifest
-        test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic,
-                                    src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+        if(args.src_dependent):
+            test1_dataset = SpecDataset_src(manifest_path=args.te1_manifest, nMic=args.nMic,
+                                        stft = stft, win_size = args.nWin, hop_size = hop_length,
+                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+        else:
+            test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic,
+                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
 
     if(len(args.te2_manifest) > 0):
         if (args.te2_manifest.find('data_sorted') == -1):
             args.te2_manifest = 'data_sorted/' + args.te2_manifest
-        test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic,
-                                    src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+        if(args.src_dependent):
+            test2_dataset = SpecDataset_src(manifest_path=args.te2_manifest, nMic=args.nMic,
+                                            stft=stft, win_size=args.nWin, hop_size=hop_length,
+                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+        else:
+            test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic,
+                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
 
     torch.set_printoptions(precision=10, profile="full")
@@ -106,6 +144,7 @@ def main(args):
         Eval2 = None
 
     # Network
+    stride_product_time = 0 # default value
     if(args.model_type == 'unet'):
         from models.unet import Unet
         if (args.model_json.find('models') == -1):
@@ -113,7 +152,8 @@ def main(args):
         json_path = os.path.join(args.model_json)
         params = utils.Params(json_path)
         net = Unet(params.model, nMic = args.nMic,
-                    input_type=args.input_type, ds_rate = args.ds_rate, w_init_std=args.w_init_std)
+                    input_type=args.input_type, ds_rate = args.ds_rate, w_init_std=args.w_init_std, out_type = args.out_type)
+        stride_product_time = get_stride_product_time(params.model['encoders'])
     elif(args.model_type == 'cMLP'):
         from models.cMLP import cMLP
         net = cMLP(nLayer = args.nLayer, nHidden = args.nHidden, nFreq = args.nFreq, nMic = args.nMic, ds_rate = args.ds_rate,
@@ -192,11 +232,17 @@ def main(args):
                 #count_mb += 1
 
                 if(not count % args.log_iter == 0):
-                    loss, loss2, eval_metric, eval2_metric = \
-                        forward_common(input, net, Loss,
-                                       Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
+                    if(args.src_dependent):
+                        loss, loss2, eval_metric, eval2_metric = forward_common_src(input, net, Loss, stride_product=stride_product_time,
+                                           Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                             use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
+                    else:
+                        loss, loss2, eval_metric, eval2_metric = \
+                                forward_common(input, net, Loss,
+                                           Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                             use_ref_IR=args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
                     loss_mean = torch.mean(loss)
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
@@ -215,12 +261,20 @@ def main(args):
                 else:
                     if(args.save_input_mat_for_debug):
                         save_input_mat_for_debug(input, count)
-                    loss, loss2, eval_metric, eval2_metric = \
-                        forward_common(input, net, Loss,
-                                       Loss2=Loss2, Eval=Eval, Eval2=Eval2,
-                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
-                                       use_ref_IR = args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
+                    if(args.src_dependent):
+                        if (args.src_dependent):
+                            loss, loss2, eval_metric, eval2_metric = \
+                                forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type, stride_product=stride_product_time,
+                                                   loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                                   use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
+                    else:
+                        loss, loss2, eval_metric, eval2_metric = \
+                            forward_common(input, net, Loss,
+                                           Loss2=Loss2, Eval=Eval, Eval2=Eval2,
+                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type,eval2_type=args.eval2_type,
+                                           use_ref_IR = args.use_ref_IR, freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
                     loss_mean = torch.mean(loss)
+
                     if(torch.isnan(loss_mean).item()):
                         print('NaN is detected on loss, terminate program')
                         logger.write('NaN is detected on loss, terminate program' + '\n')
@@ -288,10 +342,11 @@ def main(args):
                         if (len(args.trsub_manifest) > 0):
                             evaluate(trsub_loader, net, Loss, 'trsub',
                                      logger, epoch, Eval, Eval2, Loss2,
-                                     loss_type = args.loss_type, eval_type = args.eval_type
-                                     ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
-                                     freq_center_idx=args.freq_center_idx,
-                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
+                                     loss_type = args.loss_type, eval_type = args.eval_type, eval2_type=args.eval2_type,
+                                     loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
+                                     stride_product = stride_product_time,
+                                     freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx,
+                                     src_dependent=args.src_dependent, out_type=args.out_type, match_domain=args.match_domain)  # do not use Loss2 for evaluate
 
                         # Validaion
                         if (len(args.val_manifest) > 0):
@@ -299,17 +354,20 @@ def main(args):
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type=args.loss_type, eval_type = args.eval_type
                                      ,eval2_type=args.eval2_type, loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
+                                                      stride_product=stride_product_time,
                                                       freq_center_idx=args.freq_center_idx,
-                                                      freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
+                                                      freq_context_left_right_idx=args.freq_context_left_right_idx,
+                                     src_dependent=args.src_dependent, out_type=args.out_type, match_domain=args.match_domain)  # do not use Loss2 for evaluate
 
                         # Test
                         if (len(args.te1_manifest) > 0):
                             evaluate(test1_loader, net, Loss, 'te1',
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type,
-                                     use_ref_IR=args.use_ref_IR_te,
+                                     use_ref_IR=args.use_ref_IR_te, stride_product = stride_product_time,
                                      freq_center_idx=args.freq_center_idx,
-                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
+                                     freq_context_left_right_idx=args.freq_context_left_right_idx,
+                                     src_dependent=args.src_dependent, out_type=args.out_type, match_domain=args.match_domain)  # do not use Loss2 for evaluate
 
 
                         # Test2
@@ -317,9 +375,10 @@ def main(args):
                             evaluate(test2_loader, net, Loss, 'te2',
                                      logger, epoch, Eval, Eval2, Loss2,
                                      loss_type=args.loss_type, eval_type = args.eval_type ,eval2_type=args.eval2_type, loss2_type=args.loss2_type,
-                                     use_ref_IR=args.use_ref_IR_te,
+                                     use_ref_IR=args.use_ref_IR_te, stride_product = stride_product_time,
                                      freq_center_idx=args.freq_center_idx,
-                                     freq_context_left_right_idx=args.freq_context_left_right_idx)  # do not use Loss2 for evaluate
+                                     freq_context_left_right_idx=args.freq_context_left_right_idx,
+                                     src_dependent=args.src_dependent, out_type=args.out_type, match_domain=args.match_domain)  # do not use Loss2 for evaluate
 
                         net.train()
                         gc.collect()
@@ -368,10 +427,16 @@ def main(args):
 
                     savename = 'specs/' + str(args.expnum) + '/tr_' + str(count) + '.mat'
 
-                    loss, loss2, eval_metric, eval2_metric = \
-                        forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
+                    if(args.src_dependent):
+                        loss, loss2, eval_metric, eval2_metric = \
+                            forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type,
+                                               loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                               use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
+                    else:
+                        loss, loss2, eval_metric, eval2_metric = \
+                            forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                             use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
 
                     metrics_save = {}
                     if(loss is not None):
@@ -414,10 +479,16 @@ def main(args):
 
                     savename = 'specs/' + str(args.expnum) + '/val_' + str(count) + '.mat'
 
-                    loss, loss2, eval_metric, eval2_metric = \
-                        forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                       loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                         use_ref_IR=args.use_ref_IR_te, save_activation=args.save_activation, savename=savename)
+                    if(args.src_dependent):
+                        loss, loss2, eval_metric, eval2_metric = \
+                            forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type,
+                                               loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                               use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
+                    else:
+                        loss, loss2, eval_metric, eval2_metric = \
+                            forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                             use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
 
                     metrics_save = {}
                     if(loss is not None):
@@ -452,7 +523,8 @@ def main(args):
 def evaluate(loader, net, Loss, data_type,
              logger, epoch,  Eval, Eval2, Loss2,
              eval_type = '', eval2_type='', loss_type = '', loss2_type ='',
-             use_ref_IR=False, freq_center_idx=-1, freq_context_left_right_idx=0):
+             use_ref_IR=False, stride_product=1, freq_center_idx=-1, freq_context_left_right_idx=0,
+             src_dependent=False, out_type='W', match_domain='realimag'):
     count = 0
     loss_total = 0
     loss2_total = 0
@@ -462,10 +534,15 @@ def evaluate(loader, net, Loss, data_type,
     with torch.no_grad():
         for _, input in enumerate(tqdm(loader)):
             count += 1
-            loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2,
-                                                                    loss_type = loss_type, eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
-                                                                    use_ref_IR=use_ref_IR,freq_center_idx=freq_center_idx, freq_context_left_right_idx=freq_context_left_right_idx) # do not use Loss2 & ref_IR for eval
-
+            if(src_dependent):
+                loss, loss2, eval_metric, eval2_metric = \
+                    forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=loss_type,
+                                       loss2_type=loss2_type, eval_type=eval_type, eval2_type=eval2_type, stride_product = stride_product,
+                                       use_ref_IR=use_ref_IR, out_type=out_type, match_domain=match_domain)
+            else:
+                loss, loss2, eval_metric, eval2_metric = forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2,
+                                                                        loss_type = loss_type, eval_type=eval_type, eval2_type=eval2_type, loss2_type=loss2_type,
+                                                                        use_ref_IR=use_ref_IR,freq_center_idx=freq_center_idx, freq_context_left_right_idx=freq_context_left_right_idx) # do not use Loss2 & ref_IR for eval
             if(loss is not None):
                 loss_mean = torch.mean(loss)
                 loss_total += loss_mean.item()

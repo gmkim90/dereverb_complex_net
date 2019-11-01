@@ -137,6 +137,11 @@ parser.add_argument('--loss2_type', default='', type=str, help='referece_positio
 parser.add_argument('--use_ref_IR', default=False, type=str2bool, help='usage of IR from reference position')
 parser.add_argument('--use_ref_IR_te', default=False, type=str2bool, help='usage of IR from reference position (for test data)')
 
+parser.add_argument('--out_type', default='W', type=str, help='W(default)|S')
+parser.add_argument('--match_domain', default='realimag', type=str, help='realimag(default)|mag')
+
+
+
 parser.add_argument('--use_neighbor_IR', default=False, type=str2bool, help='usage of neighborhood IRs for SDR sensitivity')
 parser.add_argument('--w_loss2', default=0, type=float, help='task weight of auxiliary loss (e.g., refIR demixing)')
 
@@ -146,6 +151,7 @@ parser.add_argument('--expnum', default=-1, type=int)
 parser.add_argument('--log_iter', default=10, type=int)
 parser.add_argument('--eval_iter', default=500, type=int, help = 'if 0, it will be set to #iter per epoch (= len(train_loader))')
 
+parser.add_argument('--src_dependent', default=False, type=str2bool)
 
 parser.add_argument('--lR0', default=1e-4, type=float)
 parser.add_argument('--eps', default=1e-20, type=float)
@@ -154,6 +160,8 @@ parser.add_argument('--end_epoch', default=10000, type=int, help='')
 
 parser.add_argument('--freq_center_idx', default=-1, type=int, help = 'if >= 0, choose only one freq to train')
 parser.add_argument('--freq_context_left_right_idx', default=0, type=int, help='if > 0, use freq train')
+
+
 
 
 #parser.add_argument('--clamp_src', default=0, type=int, help = 'if > 0, clamp clean source of front/end. (i.e., clamp front/end silence)')
