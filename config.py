@@ -174,7 +174,7 @@ parser.add_argument('--do_1st_frame_clamp', default=False, type=str2bool, help =
 parser.add_argument('--ref_mic_direct_td_subtract', default=True, type=str2bool)
 
 parser.add_argument('--interval_cm_tr', default=1, type=int)
-parser.add_argument('--interval_cm_te', default=1, type=int)
+#parser.add_argument('--interval_cm_te', default=1, type=int) # disabled for now
 
 
 

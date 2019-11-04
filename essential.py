@@ -281,6 +281,7 @@ def forward_common(input, net, Loss,
     if(save_activation): # separate activation & metric to save memory
         #specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
 
+        # source-free experiment
         sio.savemat(savename,
                     {'tarH': tarH.data.cpu().numpy(), 'refH': refH.data.cpu().numpy(),
                      'Wgt_real': Wgt_real.data.cpu().numpy(), 'Wgt_imag': Wgt_imag.data.cpu().numpy(),
