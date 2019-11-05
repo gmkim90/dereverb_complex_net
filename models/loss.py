@@ -133,6 +133,10 @@ def SDR_C_mag(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-16):
     #sio.savemat('Cmag.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(), 'Cr':Cr.data.cpu().numpy(), 'Ci':Ci.data.cpu().numpy(), 'Cmag_py':Cmag.data.cpu().numpy()})
 
     distortion_mag = Cmag-1
+    # make distortion 0for garbage frames
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        distortion_mag[i, :, l:] = 0
+
     Pdistortion = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
 
     Psignal = Tlist.float().cuda()*F

@@ -329,8 +329,15 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
         enh_imag = out_imag
         mask_real, mask_imag = None, None
 
-    # Metrics
+    maxT = enh_real.size(-1)
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        enh_real[i, :, min(l, maxT):] = 0
+        enh_imag[i, :, min(l, maxT):] = 0
+        if (out_type == 'W'):
+            mask_real[i, :, :, min(l, maxT):] = 0
+            mask_imag[i, :, :, min(l, maxT):] = 0
 
+    # Metrics
     loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
 
     if(Loss2 is not None):
