@@ -296,6 +296,7 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
                    Loss2 = None, Eval=None, Eval2=None, loss_type = '', loss2_type = '', eval_type = '', eval2_type='',
                    use_ref_IR=False, save_activation=False, savename='', match_domain='realimag'):
     mic_STFT, clean_STFT, Tlist = input[0], input[1], input[2]
+    #print(Tlist)
 
     if(use_ref_IR):
         refmic_STFT = input[3]
@@ -313,6 +314,7 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
     if(use_ref_IR):
         refmic_real, refmic_imag = refmic_STFT[..., 0], refmic_STFT[..., 1]
 
+    # Forward
     if(not save_activation):
         out_real, out_imag = net(mic_real, mic_imag)
     else:
@@ -326,6 +328,8 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
         enh_real = out_real
         enh_imag = out_imag
         mask_real, mask_imag = None, None
+
+    # Metrics
 
     loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
 
@@ -371,7 +375,9 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
         save_dict = {}
         save_dict['mic_STFT'] = mic_STFT.data.cpu().numpy()
         save_dict['enh_real'] = enh_real.data.cpu().numpy()
-        save_dict['enh_real'] = enh_imag.data.cpu().numpy()
+        save_dict['enh_imag'] = enh_imag.data.cpu().numpy()
+        save_dict['clean_real'] = clean_real.data.cpu().numpy()
+        save_dict['clean_imag'] = clean_imag.data.cpu().numpy()
 
         if(out_type == 'W'):
             save_dict['mask_real'] = mask_real.data.cpu().numpy()

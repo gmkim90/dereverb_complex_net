@@ -188,6 +188,8 @@ class Unet(nn.Module):
 
     def forward(self, xr, xi, return_IMR=False):
         skips = list()
+        if(return_IMR):
+            input_real, input_imag = xr, xi
 
         if(not self.input_type == 'complex'):
             xr, xi = self.complex_ratio(xr, xi)

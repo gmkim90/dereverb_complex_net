@@ -394,6 +394,7 @@ def main(args):
         checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar', map_location=lambda storage, loc: storage)
         net.load_state_dict(checkpoint['model'])
         net.cuda()
+        net.eval()
 
         del checkpoint
         torch.cuda.empty_cache()
@@ -413,16 +414,17 @@ def main(args):
                     loss2_total = 0
                     eval_metric_total = 0
                     eval2_metric_total = 0
+                    nGenerate = min(args.nGenerate, len(loader_list[dIdx]))
                     for _, input in enumerate(tqdm(loader_list[dIdx])):
                         count = count + 1
 
                         metrics_save = {}
 
-                        savename = 'specs/' + str(args.expnum) + '/tr_' + str(count) + '.mat' # used only when save_activation = True
+                        savename = 'specs/' + str(args.expnum) + '/' + postfix_list[dIdx] + '_' + str(count) + '.mat' # used only when save_activation = True
 
                         if(args.src_dependent):
                             loss, loss2, eval_metric, eval2_metric = \
-                                forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type,
+                                forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type, save_activation=args.save_activation,
                                                    loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type, stride_product = stride_product_time,
                                                    use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain, savename=savename)
                         else:
@@ -453,6 +455,8 @@ def main(args):
                         #specs_path = 'specs/' + str(args.expnum) + '/path_' + str(postfix_list[dIdx]) + '_' + str(count) + '.mat' # temporary
 
                         sio.savemat(specs_path, metrics_save)
+                        if(count == nGenerate):
+                            break
 
                     # print metrics
                     nMinibatch = len(loader_list[dIdx])

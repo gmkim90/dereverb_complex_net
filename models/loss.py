@@ -124,17 +124,23 @@ def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-1
 def SDR_C_mag(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-16):
     # Tlist as dummy variable
     N, F, Tmax = clean_real.size()
-
+    #pdb.set_trace()
     cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
-    Cr= (out_real* clean_real + out_imag * clean_imag) / cleanSTFT_pow
+    Cr = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
     Ci = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
 
     Cmag = torch.sqrt(Cr * Cr + Ci * Ci + eps)
+    #sio.savemat('Cmag.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(), 'Cr':Cr.data.cpu().numpy(), 'Ci':Ci.data.cpu().numpy(), 'Cmag_py':Cmag.data.cpu().numpy()})
 
     distortion_mag = Cmag-1
     Pdistortion = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
 
     Psignal = Tlist.float().cuda()*F
+    #print('Psignal = ')
+    #print(Psignal)
+
+    #print('Pdistortion = ')
+    #print(Pdistortion)
 
     SDR = 10*(torch.log10(Psignal+eps) - torch.log10(Pdistortion+eps))
 
