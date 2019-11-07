@@ -123,7 +123,7 @@ parser.add_argument('--w_init_std', default=0, type=float)
 parser.add_argument('--mic_white_noise_db', default=0, type=float)
 
 # for evaluation only
-parser.add_argument('--eval_type', default='sInvSDR_mag', type=str, help='time|spec|sInvSDR_mag|srcIndepSDR_mag')
+parser.add_argument('--eval_type', default='', type=str, help='time|spec|sInvSDR_mag|srcIndepSDR_mag')
 parser.add_argument('--eval2_type', default='', type=str, help='optional measurement')
 parser.add_argument('--eval_train', default=False, type=str2bool)
 parser.add_argument('--eval_val', default=False, type=str2bool)
@@ -174,7 +174,7 @@ parser.add_argument('--do_1st_frame_clamp', default=False, type=str2bool, help =
 parser.add_argument('--ref_mic_direct_td_subtract', default=True, type=str2bool)
 
 parser.add_argument('--interval_cm_tr', default=1, type=int)
-parser.add_argument('--interval_cm_te', default=1, type=int)
+#parser.add_argument('--interval_cm_te', default=1, type=int) # disabled for now
 
 
 

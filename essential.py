@@ -279,19 +279,24 @@ def forward_common(input, net, Loss,
         eval2_metric = None
 
     if(save_activation): # separate activation & metric to save memory
-        #specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
+        save_dict = {}
+        save_dict['tarH'] = tarH.data.cpu().numpy()
+        save_dict['West_real'] = West_real.data.cpu().numpy()
+        save_dict['West_imag'] = West_imag.data.cpu().numpy()
+        if(use_ref_IR):
+            save_dict['refH'] = refH.data.cpu().numpy()
+            save_dict['Wgt_real'] = Wgt_real.data.cpu().numpy()
+            save_dict['Wgt_imag'] = Wgt_imag.data.cpu().numpy()
 
-        sio.savemat(savename,
-                    {'tarH': tarH.data.cpu().numpy(), 'refH': refH.data.cpu().numpy(),
-                     'Wgt_real': Wgt_real.data.cpu().numpy(), 'Wgt_imag': Wgt_imag.data.cpu().numpy(),
-                     'West_real': West_real.data.cpu().numpy(), 'West_imag': West_imag.data.cpu().numpy()
-                     })
+        # source-free experiment
+        sio.savemat(savename, save_dict)
     return loss, loss2, eval_metric, eval2_metric
 
 def forward_common_src(input, net, Loss, stride_product, out_type,
                    Loss2 = None, Eval=None, Eval2=None, loss_type = '', loss2_type = '', eval_type = '', eval2_type='',
                    use_ref_IR=False, save_activation=False, savename='', match_domain='realimag'):
     mic_STFT, clean_STFT, Tlist = input[0], input[1], input[2]
+    #print(Tlist)
 
     if(use_ref_IR):
         refmic_STFT = input[3]
@@ -309,7 +314,12 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
     if(use_ref_IR):
         refmic_real, refmic_imag = refmic_STFT[..., 0], refmic_STFT[..., 1]
 
-    out_real, out_imag = net(mic_real, mic_imag)
+    # Forward
+    if(not save_activation):
+        out_real, out_imag = net(mic_real, mic_imag)
+    else:
+        if(net.input_type == 'complex_ratio'):
+            out_real, out_imag, IMR_real, IMR_imag = net(mic_real, mic_imag, return_IMR=True)
     if (out_type == 'W'):
         enh_real = torch.sum(mic_real * out_real - mic_imag * out_imag, dim=1)  # NxFxT
         enh_imag = torch.sum(mic_real * out_imag + mic_imag * out_real, dim=1)  # NxFxT
@@ -319,6 +329,15 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
         enh_imag = out_imag
         mask_real, mask_imag = None, None
 
+    maxT = enh_real.size(-1)
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        enh_real[i, :, min(l, maxT):] = 0
+        enh_imag[i, :, min(l, maxT):] = 0
+        if (out_type == 'W'):
+            mask_real[i, :, :, min(l, maxT):] = 0
+            mask_imag[i, :, :, min(l, maxT):] = 0
+
+    # Metrics
     loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
 
     if(Loss2 is not None):
@@ -346,23 +365,38 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
     else:
         eval_metric = None
 
-    if(Eval2 is not None): # SDR(W)
-        if (eval2_type.find('negative') >= 0):
-            Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
-        elif(eval2_type.find('positive') >= 0):
-            Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+    if(Eval2 is not None): # SDR(|C|) or SDR(W)
+        if(eval2_type == 'SDR_C_mag'):
+            eval2_metric = Eval2(clean_real, clean_imag, enh_real, enh_imag, Tlist)
+        else:
+            if (eval2_type.find('negative') >= 0):
+                Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            elif(eval2_type.find('positive') >= 0):
+                Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
 
-        eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag)
+            eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag)
     else:
         eval2_metric = None
 
     if(save_activation): # separate activation & metric to save memory
-        #specs_path = 'specs/' + str(expnum) + '/' + data_type + '_' + str(count) + '.mat'
+        save_dict = {}
+        save_dict['mic_STFT'] = mic_STFT.data.cpu().numpy()
+        save_dict['enh_real'] = enh_real.data.cpu().numpy()
+        save_dict['enh_imag'] = enh_imag.data.cpu().numpy()
+        save_dict['clean_real'] = clean_real.data.cpu().numpy()
+        save_dict['clean_imag'] = clean_imag.data.cpu().numpy()
 
-        sio.savemat(savename,
-                    {'mic_STFT': mic_STFT.data.cpu().numpy(), 'refmic_STFT': refmic_STFT.data.cpu().numpy(),
-                     'mask_real': mask_real.data.cpu().numpy(), 'mask_imag': mask_imag.data.cpu().numpy(),
-                     'Wgt_real': Wgt_real.data.cpu().numpy(), 'Wgt_imag': Wgt_imag.data.cpu().numpy()
-                     })
+        if(out_type == 'W'):
+            save_dict['mask_real'] = mask_real.data.cpu().numpy()
+            save_dict['mask_imag'] = mask_imag.data.cpu().numpy()
+
+        if(use_ref_IR):
+            save_dict['refmic_STFT'] = refmic_STFT.data.cpu().numpy()
+
+        if(net.input_type == 'complex_ratio'):
+            save_dict['IMR_real'] = IMR_real.data.cpu().numpy()
+            save_dict['IMR_imag'] = IMR_imag.data.cpu().numpy()
+
+        sio.savemat(savename, save_dict)
 
     return loss, loss2, eval_metric, eval2_metric

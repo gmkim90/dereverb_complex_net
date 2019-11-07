@@ -186,8 +186,10 @@ class Unet(nn.Module):
         self.last_decoder = dcnn.ComplexConvWrapper(nn.ConvTranspose2d, self.w_init_std, *cfg['decoders'][-1], bias=True)
 
 
-    def forward(self, xr, xi):
+    def forward(self, xr, xi, return_IMR=False):
         skips = list()
+        if(return_IMR):
+            input_real, input_imag = xr, xi
 
         if(not self.input_type == 'complex'):
             xr, xi = self.complex_ratio(xr, xi)
@@ -214,7 +216,14 @@ class Unet(nn.Module):
                 xr, xi = decoder(xr, xi, skip=None)
         out_real, out_imag = self.last_decoder(xr, xi) # output could be demixing weight or source (depending on loss function)
 
-        return torch.squeeze(out_real, dim=1), torch.squeeze(out_imag, dim=1)
+        if(not return_IMR):
+            return torch.squeeze(out_real, dim=1), torch.squeeze(out_imag, dim=1)
+        else: # only for analysis (i.e., save_activation=True)
+            fr, fi = self.complex_ratio(input_real, input_imag)
+            if (self.ds_rate > 1):
+                fr, fi = self.downsample_freq(fr, fi)
+
+            return torch.squeeze(out_real, dim=1), torch.squeeze(out_imag, dim=1), fr, fi
 
     def downsample_freq(self, xr, xi):
         # x : Nx(M-1)xFxT (x = Intermic ratio feature)

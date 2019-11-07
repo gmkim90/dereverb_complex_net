@@ -70,19 +70,8 @@ def main(args):
                                         src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
                                         interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=train_dataset.collate, shuffle=shuffle_train_loader, num_workers=0)
-
-    if (len(args.trsub_manifest) > 0):
-        if (args.trsub_manifest.find('data_sorted') == -1):
-            args.trsub_manifest = 'data_sorted/' + args.trsub_manifest
-        if(args.src_dependent):
-            trsub_dataset = SpecDataset_src(manifest_path=args.trsub_manifest, stft=stft, win_size=args.nWin, hop_size=hop_length, nMic=args.nMic, return_path=args.return_path,
-                                    src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
-                                    interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR_te)
-        else:
-            trsub_dataset = SpecDataset(manifest_path=args.trsub_manifest, nMic=args.nMic, return_path=args.return_path,
-                                    src_range=src_range_list, start_ratio=args.start_ratio, end_ratio=args.end_ratio,
-                                    interval_cm=args.interval_cm_tr, use_ref_IR=args.use_ref_IR_te)
-        trsub_loader = DataLoader(dataset=trsub_dataset, batch_size=args.batch_size, collate_fn=trsub_dataset.collate, shuffle=False, num_workers=0)
+    else:
+        train_loader = None
 
     if (len(args.val_manifest) > 0):
         if (args.val_manifest.find('data_sorted') == -1):
@@ -90,35 +79,41 @@ def main(args):
         if(args.src_dependent):
             val_dataset = SpecDataset_src(manifest_path=args.val_manifest, nMic=args.nMic, return_path=args.return_path,
                                       stft=stft, win_size=args.nWin, hop_size=hop_length,
-                                  src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+                                  src_range='all', use_ref_IR=args.use_ref_IR_te)
         else:
             val_dataset = SpecDataset(manifest_path=args.val_manifest, nMic=args.nMic, return_path=args.return_path,
-                                      src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+                                      src_range='all', use_ref_IR=args.use_ref_IR_te)
         val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, collate_fn=val_dataset.collate, shuffle=False, num_workers=0)
+    else:
+        val_loader = None
 
     if(len(args.te1_manifest) > 0):
         if (args.te1_manifest.find('data_sorted') == -1):
             args.te1_manifest = 'data_sorted/' + args.te1_manifest
         if(args.src_dependent):
-            test1_dataset = SpecDataset_src(manifest_path=args.te1_manifest, nMic=args.nMic,
+            test1_dataset = SpecDataset_src(manifest_path=args.te1_manifest, nMic=args.nMic, return_path=args.return_path,
                                         stft = stft, win_size = args.nWin, hop_size = hop_length,
-                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+                                        src_range='all', use_ref_IR=args.use_ref_IR_te)
         else:
-            test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic,
-                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+            test1_dataset = SpecDataset(manifest_path=args.te1_manifest, nMic=args.nMic, return_path=args.return_path,
+                                        src_range='all', use_ref_IR=args.use_ref_IR_te)
         test1_loader = DataLoader(dataset=test1_dataset, batch_size=args.batch_size, collate_fn=test1_dataset.collate, shuffle=False, num_workers=0)
+    else:
+        test1_loader = None
 
     if(len(args.te2_manifest) > 0):
         if (args.te2_manifest.find('data_sorted') == -1):
             args.te2_manifest = 'data_sorted/' + args.te2_manifest
         if(args.src_dependent):
-            test2_dataset = SpecDataset_src(manifest_path=args.te2_manifest, nMic=args.nMic,
+            test2_dataset = SpecDataset_src(manifest_path=args.te2_manifest, nMic=args.nMic, return_path=args.return_path,
                                             stft=stft, win_size=args.nWin, hop_size=hop_length,
-                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+                                        src_range='all', use_ref_IR=args.use_ref_IR_te)
         else:
-            test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic,
-                                        src_range='all', interval_cm=args.interval_cm_te, use_ref_IR=args.use_ref_IR_te)
+            test2_dataset = SpecDataset(manifest_path=args.te2_manifest, nMic=args.nMic, return_path=args.return_path,
+                                        src_range='all', use_ref_IR=args.use_ref_IR_te)
         test2_loader = DataLoader(dataset=test2_dataset, batch_size=args.batch_size, collate_fn=test2_dataset.collate, shuffle=False, num_workers=0)
+    else:
+        test2_loader = None
 
     torch.set_printoptions(precision=10, profile="full")
 
@@ -159,7 +154,6 @@ def main(args):
         net = cMLP(nLayer = args.nLayer, nHidden = args.nHidden, nFreq = args.nFreq, nMic = args.nMic, ds_rate = args.ds_rate,
                    freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx)
 
-
     if(args.mode == 'train'):
         loss_valmin = 1000000000
         maxiter = (args.end_epoch - args.start_epoch)*len(train_loader)
@@ -168,7 +162,6 @@ def main(args):
 
         if (args.log_iter == 0 or args.log_iter > maxiter):
             args.log_iter = maxiter
-
 
         if(args.start_epoch > 0):
             print('training starts from epoch '+ str(args.start_epoch))
@@ -252,9 +245,13 @@ def main(args):
                     if(loss2 is not None):
                         loss2_mean = torch.mean(loss2)
                         loss2_mb += float(loss2_mean.item())
+                    else:
+                        assert(args.w_loss2 == 0), 'weight(loss2) > 0. However, loss2 is none.'
+
                     if(eval_metric is not None):
                         eval_metric_mean = torch.mean(eval_metric).item()
                         eval_metric_mb += float(eval_metric_mean)
+
                     if(eval2_metric is not None):
                         eval2_metric_mean = torch.mean(eval2_metric).item()
                         eval2_metric_mb += float(eval2_metric_mean)
@@ -338,16 +335,6 @@ def main(args):
                             net.eval()
                         count_eval += 1
 
-                        # Training subset
-                        if (len(args.trsub_manifest) > 0):
-                            evaluate(trsub_loader, net, Loss, 'trsub',
-                                     logger, epoch, Eval, Eval2, Loss2,
-                                     loss_type = args.loss_type, eval_type = args.eval_type, eval2_type=args.eval2_type,
-                                     loss2_type=args.loss2_type, use_ref_IR=args.use_ref_IR_te,
-                                     stride_product = stride_product_time,
-                                     freq_center_idx=args.freq_center_idx, freq_context_left_right_idx=args.freq_context_left_right_idx,
-                                     src_dependent=args.src_dependent, out_type=args.out_type, match_domain=args.match_domain)  # do not use Loss2 for evaluate
-
                         # Validaion
                         if (len(args.val_manifest) > 0):
                             loss_val_total = evaluate(val_loader, net, Loss, 'val',
@@ -402,11 +389,12 @@ def main(args):
         logger.close()
 
     elif(args.mode == 'generate'):
-        print('load valmin model')
+        print('load valmin model: checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar')
 
         checkpoint = torch.load('checkpoint/' + str(args.expnum) + '-model-valmin.pth.tar', map_location=lambda storage, loc: storage)
         net.load_state_dict(checkpoint['model'])
         net.cuda()
+        net.eval()
 
         del checkpoint
         torch.cuda.empty_cache()
@@ -414,111 +402,71 @@ def main(args):
         if not os.path.exists('specs/' + str(args.expnum)):
             os.makedirs('specs/' + str(args.expnum))
 
+        manifest_path_list = [args.tr_manifest, args.val_manifest, args.te1_manifest, args.te2_manifest]
+        postfix_list = ['tr', 'val', 'te1', 'te2']
+        loader_list = [train_loader, val_loader, test1_loader, test2_loader]
 
         with torch.no_grad():
-            if (len(args.tr_manifest) > 0): # tr
-                count = 0
-                loss_total = 0
-                loss2_total = 0
-                eval_metric_total = 0
-                eval2_metric_total = 0
-                for _, input in enumerate(tqdm(train_loader)):
-                    count = count + 1
+            for dIdx in range(len(manifest_path_list)):
+                if (len(manifest_path_list[dIdx]) > 0): # tr
+                    count = 0
+                    loss_total = 0
+                    loss2_total = 0
+                    eval_metric_total = 0
+                    eval2_metric_total = 0
+                    nGenerate = min(args.nGenerate, len(loader_list[dIdx]))
+                    for _, input in enumerate(tqdm(loader_list[dIdx])):
+                        count = count + 1
 
-                    savename = 'specs/' + str(args.expnum) + '/tr_' + str(count) + '.mat'
+                        metrics_save = {}
 
-                    if(args.src_dependent):
-                        loss, loss2, eval_metric, eval2_metric = \
-                            forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type,
-                                               loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                               use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
-                    else:
-                        loss, loss2, eval_metric, eval2_metric = \
-                            forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                             use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
+                        savename = 'specs/' + str(args.expnum) + '/' + postfix_list[dIdx] + '_' + str(count) + '.mat' # used only when save_activation = True
 
-                    metrics_save = {}
-                    if(loss is not None):
-                        loss_total += loss.mean().item()
-                        metrics_save['loss'] = loss.data.cpu().numpy()
-                    if(loss2 is not None):
-                        loss2_total += loss2.mean().item()
-                        metrics_save['loss2'] = loss2.data.cpu().numpy()
-                    if(eval_metric is not None):
-                        eval_metric_total += eval_metric.mean().item()
-                        metrics_save['eval_metric'] = eval_metric.data.cpu().numpy()
-                    if(eval2_metric is not None):
-                        eval2_metric_total += eval2_metric.mean().item()
-                        metrics_save['eval2_metric'] = eval2_metric.data.cpu().numpy()
+                        if(args.src_dependent):
+                            loss, loss2, eval_metric, eval2_metric = \
+                                forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type, save_activation=args.save_activation,
+                                                   loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type, stride_product = stride_product_time,
+                                                   use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain, savename=savename)
+                        else:
+                            loss, loss2, eval_metric, eval2_metric = \
+                                forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
+                                               loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
+                                                 use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
 
-                    reverb_paths = []
-                    for n in range(input[0].size(0)):
-                        reverb_paths.append(input[2][n])
-                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
+                        if(loss is not None):
+                            loss_total += loss.mean().item()
+                            metrics_save['loss'] = loss.data.cpu().numpy()
+                        if(loss2 is not None):
+                            loss2_total += loss2.mean().item()
+                            metrics_save['loss2'] = loss2.data.cpu().numpy()
+                        if(eval_metric is not None):
+                            eval_metric_total += eval_metric.mean().item()
+                            metrics_save['eval_metric'] = eval_metric.data.cpu().numpy()
+                        if(eval2_metric is not None):
+                            eval2_metric_total += eval2_metric.mean().item()
+                            metrics_save['eval2_metric'] = eval2_metric.data.cpu().numpy()
 
-                    specs_path = 'specs/' + str(args.expnum) + '/metric_tr_' + str(count) + '.mat'
+                        reverb_paths = []
+                        for n in range(input[0].size(0)):
+                            reverb_paths.append(input[-1][n])
+                        metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
 
-                    sio.savemat(specs_path, metrics_save)
+                        specs_path = 'specs/' + str(args.expnum) + '/metric_' + str(postfix_list[dIdx]) + '_' + str(count) + '.mat'
+                        #specs_path = 'specs/' + str(args.expnum) + '/path_' + str(postfix_list[dIdx]) + '_' + str(count) + '.mat' # temporary
 
-                print('tr loss = ' + str(loss_total))
-                print('tr loss2 = ' + str(loss2_total))
-                print('tr eval = ' + str(eval_metric_total))
-                print('tr eval2 = ' + str(eval2_metric_total))
-            else:
-                print("NO TRAINING MANIFEST")
+                        sio.savemat(specs_path, metrics_save)
+                        if(count == nGenerate):
+                            break
 
-            if (len(args.val_manifest) > 0): # tr
-                count = 0
-                loss_total = 0
-                loss2_total = 0
-                eval_metric_total = 0
-                eval2_metric_total = 0
-                for _, input in enumerate(tqdm(val_loader)):
-                    count = count + 1
+                    # print metrics
+                    nMinibatch = len(loader_list[dIdx])
+                    print(postfix_list[dIdx] + ' loss = ' + str(loss_total/nMinibatch))
+                    print(postfix_list[dIdx] + ' loss2 = ' + str(loss2_total/nMinibatch))
+                    print(postfix_list[dIdx] + ' eval = ' + str(eval_metric_total/nMinibatch))
+                    print(postfix_list[dIdx] + ' eval2 = ' + str(eval2_metric_total/nMinibatch))
+                else:
+                    print("NO " + postfix_list[dIdx] + " MANIFEST")
 
-                    savename = 'specs/' + str(args.expnum) + '/val_' + str(count) + '.mat'
-
-                    if(args.src_dependent):
-                        loss, loss2, eval_metric, eval2_metric = \
-                            forward_common_src(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2=Loss2, loss_type=args.loss_type,
-                                               loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                               use_ref_IR=args.use_ref_IR, out_type=args.out_type, match_domain=args.match_domain)
-                    else:
-                        loss, loss2, eval_metric, eval2_metric = \
-                            forward_common(input, net, Loss, Eval=Eval, Eval2=Eval2, Loss2 = Loss2,
-                                           loss_type = args.loss_type, loss2_type=args.loss2_type, eval_type=args.eval_type, eval2_type=args.eval2_type,
-                                             use_ref_IR=args.use_ref_IR, save_activation=args.save_activation, savename=savename)
-
-                    metrics_save = {}
-                    if(loss is not None):
-                        loss_total += loss.mean().item()
-                        metrics_save['loss'] = loss.data.cpu().numpy()
-                    if(loss2 is not None):
-                        loss2_total += loss2.mean().item()
-                        metrics_save['loss2'] = loss2.data.cpu().numpy()
-                    if(eval_metric is not None):
-                        eval_metric_total += eval_metric.mean().item()
-                        metrics_save['eval_metric'] = eval_metric.data.cpu().numpy()
-                    if(eval2_metric is not None):
-                        eval2_metric_total += eval2_metric.mean().item()
-                        metrics_save['eval2_metric'] = eval2_metric.data.cpu().numpy()
-
-                    reverb_paths = []
-                    for n in range(input[0].size(0)):
-                        reverb_paths.append(input[2][n])
-                    metrics_save['reverb_paths'] = np.asarray(tuple(reverb_paths))
-
-                    specs_path = 'specs/' + str(args.expnum) + '/metric_val_' + str(count) + '.mat'
-
-                    sio.savemat(specs_path, metrics_save)
-
-                print('val loss = ' + str(loss_total))
-                print('val loss2 = ' + str(loss2_total))
-                print('val eval = ' + str(eval_metric_total))
-                print('val eval2 = ' + str(eval2_metric_total))
-            else:
-                print("NO VALID MANIFEST")
 
 def evaluate(loader, net, Loss, data_type,
              logger, epoch,  Eval, Eval2, Loss2,

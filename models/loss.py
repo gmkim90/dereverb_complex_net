@@ -1,4 +1,5 @@
 import torch
+import math
 import scipy.io as sio
 import pdb
 
@@ -27,7 +28,7 @@ def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag,):
 
     return -MSE # x(-1) for -loss convention
 
-def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e-20):
+def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, match_domain='realimag', eps=1e-20):
     # Tlist is for dummy
 
     Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
@@ -67,15 +68,15 @@ def diff(enh_real, enh_imag, target_real, target_imag, Tlist, match_domain = 're
 def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag, Tlist, match_domain = 'realimag', eps=1e-16):
 
     # H, W: NxMxFxT
-    WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxFxT
-    WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxFxT
+    WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxMxFxT --> NxFxT
+    WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxMxFxT --> NxFxT
 
     if(match_domain == 'mag'):
         WS_mag = torch.sqrt(WS_real*WS_real + WS_imag*WS_imag + eps)
-        if(target_real == 0 and target_imag == 0):
-            target_mag = 0
-        else:
+        if(torch.is_tensor(target_real) and torch.is_tensor(target_imag)): # tensor
             target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+        else: # scalar
+            target_mag = math.sqrt(target_real*target_real + target_imag*target_imag)
         err_mag = WS_mag - target_mag
         err_power = err_mag*err_mag
     elif(match_domain == 'realimag'):
@@ -119,6 +120,37 @@ def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-1
     SDR = 10*(torch.log10(signal_power+eps) - torch.log10(distortion_power+eps))
 
     return SDR # #minibatchx1
+
+
+def SDR_C_mag(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-16):
+    # Tlist as dummy variable
+    N, F, Tmax = clean_real.size()
+    #pdb.set_trace()
+    cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
+    Cr = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
+    Ci = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
+
+    Cmag = torch.sqrt(Cr * Cr + Ci * Ci + eps)
+    #sio.savemat('Cmag.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(), 'Cr':Cr.data.cpu().numpy(), 'Ci':Ci.data.cpu().numpy(), 'Cmag_py':Cmag.data.cpu().numpy()})
+
+    distortion_mag = Cmag-1
+    # make distortion 0for garbage frames
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        distortion_mag[i, :, l:] = 0
+
+    Pdistortion = torch.sum(torch.sum(distortion_mag*distortion_mag, dim=2), dim=1)
+
+    Psignal = Tlist.float().cuda()*F
+    #print('Psignal = ')
+    #print(Psignal)
+
+    #print('Pdistortion = ')
+    #print(Pdistortion)
+
+    SDR = 10*(torch.log10(Psignal+eps) - torch.log10(Pdistortion+eps))
+
+    return SDR # #minibatchx1
+
 
 def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
     F = X_real.size(2)
