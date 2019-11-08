@@ -74,7 +74,7 @@ def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag, Tlist,
     if(match_domain == 'mag'):
         WS_mag = torch.sqrt(WS_real*WS_real + WS_imag*WS_imag + eps)
         if(torch.is_tensor(target_real) and torch.is_tensor(target_imag)): # tensor
-            target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+            target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag) # don't need to add + eps for target tensor (will not differentiate)
         else: # scalar
             target_mag = math.sqrt(target_real*target_real + target_imag*target_imag)
         err_mag = WS_mag - target_mag
@@ -122,18 +122,25 @@ def SDR_em_mag(clean_real, clean_imag, output_real, output_imag, Tlist, eps=1e-1
     return SDR # #minibatchx1
 
 
+
+
 def SDR_C_mag(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-16):
     # Tlist as dummy variable
     N, F, Tmax = clean_real.size()
-    #pdb.set_trace()
-    cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
-    Cr = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
-    Ci = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
 
-    Cmag = torch.sqrt(Cr * Cr + Ci * Ci + eps)
-    #sio.savemat('Cmag.mat', {'cleanSTFT_pow':cleanSTFT_pow.data.cpu().numpy(), 'Cr':Cr.data.cpu().numpy(), 'Ci':Ci.data.cpu().numpy(), 'Cmag_py':Cmag.data.cpu().numpy()})
+    # |C| = |S_hat/S|
+    #cleanSTFT_pow = clean_real * clean_real + clean_imag * clean_imag + eps
+    #Cr = (out_real * clean_real + out_imag * clean_imag) / cleanSTFT_pow
+    #Ci = (-out_real * clean_imag + out_imag * clean_real) / cleanSTFT_pow
+    #Cmag = torch.sqrt(Cr * Cr + Ci * Ci + eps)
+
+    # |C| = |S_hat|/|S|
+    out_pow = out_real * out_real + out_imag * out_imag + eps # eps for prevent derivative of sqrt(0)
+    clean_pow = clean_real * clean_real + clean_imag * clean_imag + eps # eps for divided by 0
+    Cmag = torch.sqrt(out_pow/clean_pow)
 
     distortion_mag = Cmag-1
+
     # make distortion 0for garbage frames
     for i, l in enumerate(Tlist):  # zero padding to output audio
         distortion_mag[i, :, l:] = 0
@@ -151,6 +158,46 @@ def SDR_C_mag(clean_real, clean_imag, out_real, out_imag, Tlist, eps=1e-16):
 
     return SDR # #minibatchx1
 
+def Cdistortion_pos(out_real, out_imag, clean_real, clean_imag, Tlist, match_domain = 'realimag', eps=1e-16):
+    assert(match_domain == 'mag')
+
+    # |C| = |S_hat|/|S|
+    out_pow = out_real * out_real + out_imag * out_imag + eps  # eps for prevent derivative of sqrt(0)
+    clean_pow = clean_real * clean_real + clean_imag * clean_imag + eps  # eps for divided by 0
+    Cmag = torch.sqrt(out_pow / clean_pow)
+
+    distortion_mag = Cmag - 1 # pos
+
+    # make distortion 0for garbage frames
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        distortion_mag[i, :, l:] = 0
+
+    Pdistortion = torch.sum(torch.sum(distortion_mag * distortion_mag, dim=2), dim=1)
+    if(Tlist is not None): # source-dependent case
+        Pdistortion_negative_normalized = -Pdistortion/(Tlist.float().cuda())
+
+    return Pdistortion_negative_normalized
+
+
+def Cdistortion_neg(out_real, out_imag, clean_real, clean_imag, Tlist, match_domain = 'realimag', eps=1e-16):
+    assert(match_domain == 'mag')
+
+    # |C| = |S_hat|/|S|
+    out_pow = out_real * out_real + out_imag * out_imag + eps  # eps for prevent derivative of sqrt(0)
+    clean_pow = clean_real * clean_real + clean_imag * clean_imag + eps  # eps for divided by 0
+    Cmag = torch.sqrt(out_pow / clean_pow)
+
+    distortion_mag = Cmag # neg
+
+    # make distortion 0for garbage frames
+    for i, l in enumerate(Tlist):  # zero padding to output audio
+        distortion_mag[i, :, l:] = 0
+
+    Pdistortion = torch.sum(torch.sum(distortion_mag * distortion_mag, dim=2), dim=1)
+    if(Tlist is not None): # source-dependent case
+        Pdistortion_negative_normalized = -Pdistortion/(Tlist.float().cuda())
+
+    return Pdistortion_negative_normalized
 
 def reference_position_demixing(X_real, X_imag, W_real, W_imag, Tlist):
     F = X_real.size(2)

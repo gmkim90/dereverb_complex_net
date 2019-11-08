@@ -342,21 +342,27 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
     loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
 
     if(Loss2 is not None):
-        if (loss2_type.find('positive') >= 0):
-            target_real = clean_real
-            target_imag = clean_imag
-        elif (loss2_type.find('negative') >= 0):
-            target_real = 0
-            target_imag = 0
+        if(loss2_type.find('Cdistortion') >= 0):
+            enh_real_ref = torch.sum(refmic_real * mask_real - refmic_imag * mask_imag, dim=1)  # NxFxT
+            enh_imag_ref = torch.sum(refmic_real * mask_imag + refmic_imag * mask_real, dim=1)  # NxFxT
+            loss2 = -Loss2(enh_real_ref, enh_imag_ref, clean_real, clean_imag, Tlist, match_domain=match_domain)  # note that we only allow positive target loss
 
-        if (loss2_type.find('tar') >= 0):
-            in_real = mic_real
-            in_imag = mic_imag
-        elif (loss2_type.find('ref') >= 0):
-            in_real = refmic_real
-            in_imag = refmic_imag
+        else:
+            if (loss2_type.find('positive') >= 0):
+                target_real = clean_real
+                target_imag = clean_imag
+            elif (loss2_type.find('negative') >= 0):
+                target_real = 0
+                target_imag = 0
 
-        loss2 = -Loss2(in_real, in_imag, out_real, out_imag, target_real, target_imag, Tlist, match_domain=match_domain)
+            if (loss2_type.find('tar') >= 0):
+                in_real = mic_real
+                in_imag = mic_imag
+            elif (loss2_type.find('ref') >= 0):
+                in_real = refmic_real
+                in_imag = refmic_imag
+
+            loss2 = -Loss2(in_real, in_imag, out_real, out_imag, target_real, target_imag, Tlist, match_domain=match_domain)
 
     else:
         loss2 = None
