@@ -139,7 +139,8 @@ def get_gtW_negative_src(Xt_real, Xt_imag, Xr_real, Xr_imag, S_real, S_imag, eps
 
 def forward_common(input, net, Loss,
                    Loss2 = None, Eval=None, Eval2=None, loss_type = '', loss2_type = '', eval_type = '', eval2_type='',
-                   use_ref_IR=False, save_activation=False, savename='', freq_center_idx=-1, freq_context_left_right_idx=0):
+                   use_ref_IR=False, save_activation=False, savename='', freq_center_idx=-1, freq_context_left_right_idx=0,
+                   match_domain='realimag'):
 
     tarH = input[0]
     tarH_real, tarH_imag = tarH[..., 0], tarH[..., 1]
@@ -181,7 +182,7 @@ def forward_common(input, net, Loss,
         elif(loss_type.find('ref')>= 0):
             H_real = refH_real
             H_imag = refH_imag
-        loss = -Loss(H_real, H_imag, West_real, West_imag, target_real, target_imag, Tlist=None)
+        loss = -Loss(H_real, H_imag, West_real, West_imag, target_real, target_imag, match_domain = match_domain, Tlist=None)
     else:
         loss = None
 
@@ -210,7 +211,7 @@ def forward_common(input, net, Loss,
             elif (loss2_type.find('ref') >= 0):
                 H_real = refH_real
                 H_imag = refH_imag
-            loss2 = -Loss2(H_real, H_imag, West_real, West_imag, target_real, target_imag, Tlist=None)
+            loss2 = -Loss2(H_real, H_imag, West_real, West_imag, target_real, target_imag, match_domain = match_domain,  Tlist=None)
         else:
             loss2 = None
     else:
@@ -241,7 +242,7 @@ def forward_common(input, net, Loss,
             elif (eval_type.find('ref') >= 0):
                 H_real = refH_real
                 H_imag = refH_imag
-            eval_metric = Eval(H_real, H_imag, West_real, West_imag, target_real, target_imag, Tlist=None)
+            eval_metric = Eval(H_real, H_imag, West_real, West_imag, target_real, target_imag, match_domain = match_domain, Tlist=None)
         else:
             eval_metric = None
     else:
@@ -272,7 +273,7 @@ def forward_common(input, net, Loss,
             elif (eval2_type.find('ref') >= 0):
                 H_real = refH_real
                 H_imag = refH_imag
-            eval2_metric = Eval2(H_real, H_imag, West_real, West_imag, target_real, target_imag, Tlist=None)
+            eval2_metric = Eval2(H_real, H_imag, West_real, West_imag, target_real, target_imag, match_domain = match_domain, Tlist=None)
         else:
             eval2_metric = None
     else:

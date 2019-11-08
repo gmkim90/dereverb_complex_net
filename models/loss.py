@@ -1,4 +1,5 @@
 import torch
+import math
 import scipy.io as sio
 import pdb
 
@@ -27,7 +28,7 @@ def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag,):
 
     return -MSE # x(-1) for -loss convention
 
-def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e-20):
+def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, match_domain='realimag', eps=1e-20):
     # Tlist is for dummy
 
     Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
@@ -67,15 +68,15 @@ def diff(enh_real, enh_imag, target_real, target_imag, Tlist, match_domain = 're
 def WH_sum_diff(H_real, H_imag, W_real, W_imag, target_real, target_imag, Tlist, match_domain = 'realimag', eps=1e-16):
 
     # H, W: NxMxFxT
-    WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxFxT
-    WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxFxT
+    WS_real = torch.sum(H_real*W_real-H_imag*W_imag, dim=1) # NxMxFxT --> NxFxT
+    WS_imag = torch.sum(H_real*W_imag+H_imag*W_real, dim=1) # NxMxFxT --> NxFxT
 
     if(match_domain == 'mag'):
         WS_mag = torch.sqrt(WS_real*WS_real + WS_imag*WS_imag + eps)
-        if(target_real == 0 and target_imag == 0):
-            target_mag = 0
-        else:
+        if(torch.is_tensor(target_real) and torch.is_tensor(target_imag)): # tensor
             target_mag = torch.sqrt(target_real*target_real + target_imag*target_imag + eps)
+        else: # scalar
+            target_mag = math.sqrt(target_real*target_real + target_imag*target_imag)
         err_mag = WS_mag - target_mag
         err_power = err_mag*err_mag
     elif(match_domain == 'realimag'):
