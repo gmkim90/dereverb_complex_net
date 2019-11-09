@@ -190,8 +190,8 @@ def Cdistortion_neg(out_real, out_imag, clean_real, clean_imag, Tlist, match_dom
     distortion_mag = Cmag # neg
 
     # make distortion 0for garbage frames
-    for i, l in enumerate(Tlist):  # zero padding to output audio
-        distortion_mag[i, :, l:] = 0
+    #for i, l in enumerate(Tlist):  # does not needed
+#        distortion_mag[i, :, l:] = 0
 
     Pdistortion = torch.sum(torch.sum(distortion_mag * distortion_mag, dim=2), dim=1)
     if(Tlist is not None): # source-dependent case
