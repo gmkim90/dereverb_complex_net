@@ -3,7 +3,7 @@ import math
 import scipy.io as sio
 import pdb
 
-def Wdiff_realimag_gtnormalized(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e-20):
+def Wdiff_realimag_gtnormalized(Wgt_real, Wgt_imag, West_real, West_imag):
     Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
     West = torch.cat((West_real, West_imag), dim=1) # concat along mic dimension
 
@@ -15,7 +15,7 @@ def Wdiff_realimag_gtnormalized(Wgt_real, Wgt_imag, West_real, West_imag, eps=1e
 
     return -distortion_to_signal_power# x(-1) for -loss convention
 
-def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag,):
+def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag):
     F = Wgt_real.size(2)
 
     Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
@@ -28,8 +28,8 @@ def Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag,):
 
     return -MSE # x(-1) for -loss convention
 
-def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, match_domain='realimag', eps=1e-20):
-    # Tlist is for dummy
+def SDR_Wdiff_realimag(Wgt_real, Wgt_imag, West_real, West_imag, match_domain='realimag', eps=1e-16):
+    # match_domain is for dummy
 
     Wgt = torch.cat((Wgt_real, Wgt_imag), dim=1) # concat along mic dimension
     West = torch.cat((West_real, West_imag), dim=1) # concat along mic dimension

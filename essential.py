@@ -339,7 +339,11 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
             mask_imag[i, :, :, min(l, maxT):] = 0
 
     # Metrics
-    loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
+    if(loss_type.find('Wdiff') == -1): # loss not on W
+        loss = -Loss(enh_real, enh_imag, clean_real, clean_imag, Tlist, match_domain=match_domain) # note that we only allow positive target loss
+    else:
+        Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+        loss = -Loss(Wgt_real, Wgt_imag, mask_real, mask_imag)
 
     if(Loss2 is not None):
         if(loss2_type.find('Cdistortion') >= 0):
@@ -376,10 +380,11 @@ def forward_common_src(input, net, Loss, stride_product, out_type,
         if(eval2_type == 'SDR_C_mag'):
             eval2_metric = Eval2(clean_real, clean_imag, enh_real, enh_imag, Tlist)
         else:
-            if (eval2_type.find('negative') >= 0):
-                Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
-            elif(eval2_type.find('positive') >= 0):
-                Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+            if(loss_type.find('Wdiff') == 0): # if loss calculates Wgt, use them
+                if (eval2_type.find('negative') >= 0):
+                    Wgt_real, Wgt_imag = get_gtW_negative_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
+                elif(eval2_type.find('positive') >= 0):
+                    Wgt_real, Wgt_imag = get_gtW_positive_src(mic_real, mic_imag, refmic_real, refmic_imag, clean_real, clean_imag)
 
             eval2_metric = Eval2(Wgt_real, Wgt_imag, mask_real, mask_imag)
     else:
