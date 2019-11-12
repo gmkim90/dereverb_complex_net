@@ -134,8 +134,42 @@ case "$1" in
 	python3.7 train.py --expnum 609 --model_type unet --model_json models/reverb_multimic_12S_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR False --use_ref_IR_te False --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --input_type complex $post_arguments
 ;;
 
+633te2) echo "633 IMR->W, tarIR, 2cm (te2, #src=5)"
+	python3.7 train.py --expnum 633 --model_type unet --model_json models/reverb_multimic_12S_ksztime=1_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR False --use_ref_IR_te False --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --ds_rate 8 --input_type complex_ratio $post_arguments
+;;
+
+634te2) echo "634 IMR->W, tarIR + 0.1refIR, 2cm (te2, #src=5)"
+	python3.7 train.py --expnum 634 --model_type unet --model_json models/reverb_multimic_12S_ksztime=1_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR True --use_ref_IR_te True --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --ds_rate 8 --input_type complex_ratio $post_arguments
+;;
+
+637te2) echo "637 X->S, #src=5 (te2, #src=5)"
+	python3.7 train.py --expnum 637 --model_type unet --model_json models/reverb_multimic_12S_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR False --use_ref_IR_te False --batch_size 16 --match_domain mag --src_dependent True --out_type S --nWin 8192 --nFFT 8192 --input_type complex $post_arguments
+;;
+
+638te2) echo "638 X->W, #src=5 (te2, #src=5)"
+	python3.7 train.py --expnum 638 --model_type unet --model_json models/reverb_multimic_12S_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR False --use_ref_IR_te False --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --input_type complex $post_arguments
+;;
+
+639te2) echo "IMR->W, #src=5 (te2, #src=5)"
+	python3.7 train.py --expnum 639 --model_type unet --model_json models/reverb_multimic_12S_ksztime=1_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR False --use_ref_IR_te False --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --ds_rate 8 --input_type complex_ratio $post_arguments
+;;
 
 
+640te2) echo "IMR->W, tarIR + 0.1refIR, #src=5 (te2, #src=5)"
+	python3.7 train.py --expnum 640 --model_type unet --model_json models/reverb_multimic_12S_ksztime=1_realimag.json --grid_cm 1 --nMic 2 --loss_type diff --eval_type SDR_em_mag --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR True --use_ref_IR_te True --batch_size 16 --match_domain mag --src_dependent True --out_type W --nWin 8192 --nFFT 8192 --ds_rate 8 --input_type complex_ratio $post_arguments
+;;
+
+635te2) echo "RTF->C, 2cm (te2, #src=5)"
+	python3.7 train.py --expnum 635 --model_type cMLP --nLayer 3 --nHidden 128 --nFreq 1601 --grid_cm 1 --nMic 2 --loss_type WH_sum_diff_positive_tar --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR True --use_ref_IR_te True --batch_size 128 --ds_rate 1 $post_arguments
+;;
+
+636te2) echo "RTF->C, 5cm (te2, #src=5)"
+	python3.7 train.py --expnum 636 --model_type cMLP --nLayer 3 --nHidden 128 --nFreq 1601 --grid_cm 1 --nMic 2 --loss_type WH_sum_diff_positive_tar --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR True --use_ref_IR_te True --batch_size 128 --ds_rate 1 $post_arguments
+;;
+
+6120te2) echo "RTF->C, 10cm (te2, #src=5)"
+	python3.7 train.py --expnum 6120 --model_type cMLP --nLayer 3 --nHidden 512 --nFreq 1601 --grid_cm 1 --nMic 2 --loss_type WH_sum_diff_positive_tar --te2_manifest L553_30301_1_unseenSrc5_ref1_ofa.csv --use_ref_IR True --use_ref_IR True --use_ref_IR_te True --batch_size 128 --ds_rate 1 $post_arguments
+;;
 
 
 # TR/VAL/TE1 manifest 모두 생성하고 싶은것인지 실행 전 항상 확인
